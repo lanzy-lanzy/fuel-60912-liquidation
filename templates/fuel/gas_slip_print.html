@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    @media print {
+        body {
+            -webkit-print-color-adjust: exact;
+            margin: 0;
+            padding: 0;
+        }
+        .no-print, .top-navigation {
+            display: none !important;
+        }
+        .slip-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            grid-gap: 10px;
+            padding: 10px;
+            page-break-inside: avoid;
+        }
+    }
+    body {
+        font-family: 'Times New Roman', serif;
+        background-color: #ffffff;
+        color: #000;
+    }
+    .slip-container {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        grid-gap: 10px;
+        padding: 10px;
+    }
+    .slip {
+        border: 1px solid #000;
+        padding: 10px;
+        margin-bottom: 10px;
+        page-break-inside: avoid;
+    }
+    .header, .footer {
+        background-color: #f0f0f0;
+        color: #000;
+        text-align: center;
+        padding: 5px;
+    }
+    .header h2 {
+        margin: 0;
+        font-size: 1.2em;
+    }
+    .content {
+        padding: 10px;
+    }
+    .content p {
+        margin: 3px 0;
+        font-size: 0.9em;
+    }
+    .footer p {
+        margin: 0;
+        font-size: 0.8em;
+    }
+    .no-print {
+        margin-top: 20px;
+        text-align: center;
+    }
+    .no-print button, .no-print a {
+        display: inline-block;
+        margin: 5px;
+        padding: 8px 16px;
+        font-size: 0.9em;
+        border-radius: 5px;
+        text-decoration: none;
+        transition: background-color 0.3s ease;
+    }
+    .no-print button {
+        background-color: #444;
+        color: #fff;
+        border: none;
+        cursor: pointer;
+    }
+    .no-print button:hover {
+        background-color: #333;
+    }
+    .no-print a {
+        background-color: #ccc;
+        color: #000;
+    }
+    .no-print a:hover {
+        background-color: #bbb;
+    }
+</style>
+
+<div class="slip-container">
+    {% for slip in slips %}
+    <div class="slip">
+        <div class="header">
+            <h2>FUEL SLIP</h2>
+            <p>Ref: #{{ slip.id|stringformat:"04d" }}</p>
+        </div>
+        <div class="content">
+            <p><strong>Driver:</strong> {{ slip.driver }}</p>
+            <p><strong>Date:</strong> {{ slip.date|date:"M d, Y" }}</p>
+            <p><strong>Purpose:</strong> {{ slip.purpose }}</p>
+            <p><strong>Liters Used:</strong> {{ slip.total_liters }} L</p>
+            <p><strong>Total Cost:</strong> ₱{{ slip.cost }}</p>
+        </div>
+        <div class="footer">
+            <p>Authorized Signature</p>
+            <div style="border-bottom: 1px dashed #000; height: 30px;"></div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="no-print">
+    <button onclick="window.print()">Print Slips</button>
+    <a href="{% url 'dashboard' %}">Return to Dashboard</a>
+</div>
+{% endblock %}

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% load custom_filters %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+    <h2 class="text-2xl font-bold">Drivers</h2>
+    <a href="{% url 'driver_create' %}" 
+       class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+        + Add Driver
+    </a>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    {% for driver in drivers %}
+    <a href="{% url 'driver_detail' driver.pk %}" 
+       class="bg-white p-4 rounded-lg shadow hover:shadow-md transition-shadow">
+        <h3 class="text-lg font-medium">{{ driver.name }}</h3>
+        <p class="text-gray-600 mt-2">
+            Total Fuel Used: 
+            <span class="text-blue-600 font-medium">
+                {{ driver.fuelconsumption_set.all|sum_attr:'total_liters' }}L
+            </span>
+        </p>
+    </a>
+    {% endfor %}
+</div>
+{% endblock %}

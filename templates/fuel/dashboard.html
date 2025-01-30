@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% load custom_filters %}
+
+{% block content %}
+<div class="mb-8">
+    <h2 class="text-2xl font-bold mb-4">Fuel Overview</h2>
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="bg-white p-4 rounded-lg shadow">
+            <h3 class="text-gray-500 text-sm">Total Consumed</h3>
+            <p class="text-2xl font-bold text-blue-600">{{ total_consumed }} L</p>
+        </div>
+        <div class="bg-white p-4 rounded-lg shadow">
+            <h3 class="text-gray-500 text-sm">Remaining Fuel</h3>
+            <p class="text-2xl font-bold text-green-600">{{ remaining_fuel }} L</p>
+            <div class="w-full bg-gray-200 rounded-full h-2 mt-2">
+                <div class="bg-green-500 rounded-full h-2" style="width: {{ remaining_percentage }}%"></div>
+            </div>
+        </div>
+        <div class="bg-white p-4 rounded-lg shadow">
+            <h3 class="text-gray-500 text-sm">Total Cost</h3>
+            <p class="text-2xl font-bold text-purple-600">₱{{ total_cost }}</p>
+        </div>
+        <div class="bg-white p-4 rounded-lg shadow">
+            <h3 class="text-gray-500 text-sm">Current Month</h3>
+            <p class="text-2xl font-bold text-orange-600">{{ current_month }}</p>
+        </div>
+    </div>
+
+    <div class="mt-4 text-center">
+        <a href="{% url 'print_gas_slips' %}" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
+            Print Gas Slips
+        </a>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+    <div>
+        <h2 class="text-xl font-bold mb-4">Recent Entries</h2>
+        <div class="bg-white rounded-lg shadow overflow-hidden">
+            <table class="w-full">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-2 text-left">Date</th>
+                        <th class="px-4 py-2 text-left">Driver</th>
+                        <th class="px-4 py-2 text-left">Trips</th>
+                        <th class="px-4 py-2 text-left">Liters</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in fuel_entries %}
+                    <tr class="border-t hover:bg-gray-50">
+                        <td class="px-4 py-2">{{ entry.date }}</td>
+                        <td class="px-4 py-2">{{ entry.driver }}</td>
+                        <td class="px-4 py-2">{{ entry.number_of_trips }}</td>
+                        <td class="px-4 py-2 text-blue-600 font-medium">{{ entry.total_liters }}L</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div>
+        <h2 class="text-xl font-bold mb-4">Driver Usage</h2>
+        <div class="space-y-4">
+            {% for driver in drivers %}
+            <div class="bg-white p-4 rounded-lg shadow">
+                <div class="flex justify-between items-center">
+                    <h3 class="font-medium">{{ driver.name }}</h3>
+                    <span class="text-blue-600 font-bold">{{ driver.total_used|default:0 }}L</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2 mt-2">
+                    <div class="bg-blue-500 rounded-full h-2" 
+                         style="width: {{ driver.total_used|div:total_consumed|multiply:100 }}%"></div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

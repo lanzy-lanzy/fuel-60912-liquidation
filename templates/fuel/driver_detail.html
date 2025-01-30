@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="mb-6">
+    <h2 class="text-2xl font-bold">{{ driver.name }}'s Performance</h2>
+    <a href="{% url 'driver_list' %}" class="text-blue-600 hover:text-blue-800">← Back to Drivers</a>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+    <div class="bg-white p-4 rounded-lg shadow">
+        <h3 class="text-gray-500 text-sm">Total Trips</h3>
+        <p class="text-2xl font-bold text-green-600">{{ total_trips }}</p>
+    </div>
+    <div class="bg-white p-4 rounded-lg shadow">
+        <h3 class="text-gray-500 text-sm">Total Fuel Used</h3>
+        <p class="text-2xl font-bold text-blue-600">{{ total_used }}L</p>
+    </div>
+    <div class="bg-white p-4 rounded-lg shadow">
+        <h3 class="text-gray-500 text-sm">Avg per Trip</h3>
+        <p class="text-2xl font-bold text-purple-600">{{ average_per_trip }}L</p>
+    </div>
+</div>
+
+<h3 class="text-xl font-bold mb-4">Consumption History</h3>
+<div class="bg-white rounded-lg shadow overflow-hidden">
+    <table class="w-full">
+        <thead class="bg-gray-50">
+            <tr>
+                <th class="px-4 py-2 text-left">Date</th>
+                <th class="px-4 py-2 text-left">Trips</th>
+                <th class="px-4 py-2 text-left">Liters</th>
+                <th class="px-4 py-2 text-left">Cost</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for entry in consumption_history %}
+            <tr class="border-t hover:bg-gray-50">
+                <td class="px-4 py-2">{{ entry.date }}</td>
+                <td class="px-4 py-2">{{ entry.number_of_trips }}</td>
+                <td class="px-4 py-2 text-blue-600">{{ entry.total_liters }}L</td>
+                <td class="px-4 py-2 text-green-600">₱{{ entry.cost }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
