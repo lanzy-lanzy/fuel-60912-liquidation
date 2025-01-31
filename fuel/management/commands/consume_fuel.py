@@ -28,28 +28,44 @@ class Command(BaseCommand):
         end_date = date(2024, 12, 31)
         num_days = (end_date - start_date).days + 1
 
+        # Define total available fuel
+        total_available_fuel = 7499.68  # Example total fuel available
+
         # Distribute consumption among drivers
-        for single_date in (start_date + timedelta(n) for n in range(num_days)):
+        for n in range(num_days):
+            single_date = start_date + timedelta(n)
+
+            # Skip December 27, 2024
+            if single_date == date(2024, 12, 27):
+                continue
+
+            # Determine if today should be a two-trip day
+            is_two_trip_day = (single_date.weekday() == 6)  # Sunday as a two-trip day
+
             for driver in drivers:
-                # Randomize the number of trips
-                number_of_trips = random.randint(1, 2)
+                # Determine the number of trips for the day
+                trips_today = 2 if is_two_trip_day else 1
 
-                # Calculate total liters ensuring it does not exceed 25 liters per trip
-                total_liters = sum(round(random.uniform(15, 25), 2) for _ in range(number_of_trips))
-                cost = total_liters * 56.50
+                for _ in range(trips_today):
+                    # Check if an entry already exists for this driver and date
+                    if FuelConsumption.objects.filter(driver=driver, date=single_date).exists():
+                        continue  # Skip creating a duplicate entry
 
-                # Adjust total liters if cost exceeds 1500
-                if cost > 1500:
-                    total_liters = 1500 / 56.50
-                    cost = 1500
+                    # Randomly choose a total liters value between 1000 and 1500 for each trip
+                    total_liters = random.uniform(1000, 1500)
+                    cost = total_liters * 56.50  # Assuming cost per liter is 56.50
 
-                # Create a FuelConsumption entry
-                FuelConsumption.objects.create(
-                    driver=driver,
-                    date=single_date,
-                    number_of_trips=number_of_trips,
-                    purpose="Transport Patient",
-                    total_liters=total_liters,
-                    cost=cost
-                )
+                    # Deduct the used fuel from the total available fuel
+                    total_available_fuel -= total_liters
+
+                    # Create a FuelConsumption entry for each trip
+                    FuelConsumption.objects.create(
+                        driver=driver,
+                        date=single_date,
+                        number_of_trips=1,  # Each entry represents a single trip
+                        purpose="Transport Patient",
+                        total_liters=total_liters,
+                        cost=cost
+                    )
+
         self.stdout.write(self.style.SUCCESS('Successfully simulated fuel consumption'))
