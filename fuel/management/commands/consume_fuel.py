@@ -1,12 +1,13 @@
+import random
+from datetime import date, timedelta
 from django.core.management.base import BaseCommand
 from fuel.models import Driver, FuelConsumption
-from datetime import date, timedelta
-import random
 
 class Command(BaseCommand):
-    help = 'Simulate fuel consumption for drivers with shift rotation'
+    help = 'Simulate fuel consumption with separate gas slips for multiple trips per day using a fixed price of ₱56.50 per liter'
 
     def handle(self, *args, **kwargs):
+        # Set up driver shifts.
         driver_shifts = {
             "Ambulance L300": [
                 ("Julchan Mamac", "Ambulance L300"),
@@ -35,48 +36,77 @@ class Command(BaseCommand):
                     driver.save()
                 drivers_by_vehicle[vehicle].append(driver)
 
-        start_date = date(2024, 10, 13)
+        # Fixed price per liter.
+        PRICE_PER_LITER = 56.50
+
+        # Allocation constants
+        TOTAL_BUDGET = 423731.92
+        TOTAL_LITERS = TOTAL_BUDGET / PRICE_PER_LITER
+
+        # Allowed random trip cost options.
+        trip_cost_options = [1000, 1200, 1500]
+
+        # Simulation period: October 8, 2024 to December 31, 2024.
+        start_date = date(2024, 10, 8)
         end_date = date(2024, 12, 31)
         num_days = (end_date - start_date).days + 1
 
-        remaining_fuel = round(FuelConsumption.TOTAL_FUEL_ALLOCATION, 2)
-        working_days = num_days - 1  # Excluding Dec 27
-        vehicles_count = len(driver_shifts)
+        remaining_fuel = TOTAL_LITERS
 
-        # Set strict limits for fuel consumption
-        min_liters = 15.00
-        max_liters = 25.00
+        # Dictionary to track trip_number for each (driver.id, date)
+        trip_numbers = {}
 
         for n in range(num_days):
             current_date = start_date + timedelta(n)
-            
+            # Optionally skip a specific date if needed (e.g., December 27, 2024)
             if current_date == date(2024, 12, 27):
                 continue
 
-            shift_day = n % 4
+            shift_day = n % 4  # For driver shift rotation
 
             for vehicle, driver_pair in drivers_by_vehicle.items():
                 active_driver = driver_pair[0] if shift_day < 2 else driver_pair[1]
-                trips_today = 2 if current_date.weekday() == 6 else 1
+                # Two trips on Sundays; one trip on other days.
+                trips_today = random.randint(2, 3) if current_date.weekday() == 6 else random.randint(1, 2)
 
-                # Calculate fuel within strict limits
-                daily_liters = round(random.uniform(min_liters, max_liters), 2)
+                for _ in range(trips_today):
+                    if remaining_fuel <= 0:
+                        break
 
-                if remaining_fuel >= daily_liters:
-                    cost = round(daily_liters * FuelConsumption.FUEL_PRICE, 2)
+                    selected_cost = random.choice(trip_cost_options)
+                    required_liters = selected_cost / PRICE_PER_LITER
+
+                    if remaining_fuel >= required_liters:
+                        trip_liters = required_liters
+                        trip_cost = selected_cost
+                    else:
+                        trip_liters = remaining_fuel
+                        trip_cost = trip_liters * PRICE_PER_LITER
+
+                    # Determine unique trip number using our in‐memory dictionary.
+                    key = (active_driver.id, current_date)
+                    trip_numbers[key] = trip_numbers.get(key, 0) + 1
+                    trip_number = trip_numbers[key]
                     FuelConsumption.objects.create(
-                        driver=active_driver,
-                        date=current_date,
-                        number_of_trips=trips_today,
-                        purpose="Transport Patient",
-                        total_liters=daily_liters,
-                        cost=cost
+                          driver=active_driver,
+                          date=current_date,
+                          trip_number=trip_number,
+                          number_of_trips=1,
+                          purpose="Transport Patient",
+                          total_liters=trip_liters,
+                          cost=trip_cost,
+                          vehicle=active_driver.vehicle  # Add this line to include the vehicle
                     )
-                    remaining_fuel = round(remaining_fuel - daily_liters, 2)
+                    remaining_fuel -= trip_liters
+                if remaining_fuel <= 0:
+                    break
+            if remaining_fuel <= 0:
+                break
 
         self.stdout.write(
             self.style.SUCCESS(
-                f'Fuel consumption simulation completed. '
-                f'Remaining fuel: {remaining_fuel:.2f}L'
+                f'Fuel consumption simulation completed for October 8, 2024 to December 31, 2024.\n'
+                f'Remaining fuel: {remaining_fuel:.2f}L\n'
+                f'Remaining budget: ₱{remaining_fuel * PRICE_PER_LITER:.2f}'
             )
         )

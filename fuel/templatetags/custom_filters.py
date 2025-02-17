@@ -8,11 +8,12 @@ def sum_attr(queryset, attr):
 
 @register.filter
 def div(value, arg):
+    if value is None or arg is None:
+        return 0  # or return an empty string, or any fallback value you'd prefer
     try:
-        return (value / arg) * 100  # Assuming you want a percentage
+        return (float(value) / float(arg)) * 100  # Assuming you want a percentage
     except (ValueError, ZeroDivisionError):
         return 0
-
 @register.filter
 def multiply(value, arg):
     try:

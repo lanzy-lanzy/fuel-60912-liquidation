@@ -5,11 +5,10 @@
 {% block content %}
 <script src="https://cdn.tailwindcss.com"></script>
 <div class="min-h-screen bg-white py-8">
-    <div class="grid grid-cols-2 gap-8 max-w-[210mm] mx-auto px-4">
+    <div class="grid grid-cols-2 gap-4 max-w-[210mm] mx-auto px-4">
         {% for slip in slips %}
-        <div class="bg-white rounded-sm border-2 border-gray-200 h-[135mm] relative">
-            <!-- Letterhead Section -->
-            <div class="border-b-2 border-blue-900 py-3 px-4">
+        <div class="bg-white rounded-sm border-2 border-gray-200 h-[125mm] relative">
+            <div class="border-b-2 border-blue-900 py-2 px-3">
                 <div class="flex justify-between items-center">
                     <div class="text-left">
                         <h1 class="text-xl font-bold text-blue-900">GAS SLIP</h1>
@@ -21,10 +20,8 @@
                 </div>
             </div>
 
-            <!-- Main Content -->
-            <div class="px-4 py-5">
-                <!-- Information Grid -->
-                <div class="grid grid-cols-2 gap-x-8 gap-y-4 text-sm">
+            <div class="px-3 py-3">
+                <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
                     <div class="col-span-2">
                         <h3 class="font-semibold text-blue-900 mb-2">TRANSACTION DETAILS</h3>
                         <table class="w-full">
@@ -48,24 +45,25 @@
                             </tbody>
                         </table>
                     </div>
-
-                    <div class="col-span-2 border-t border-gray-200 pt-4">
-                        <h3 class="font-semibold text-blue-900 mb-2">FUEL INFORMATION</h3>
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <p class="text-gray-600">Liters Dispensed</p>
-                                <p class="text-lg font-bold text-blue-900">{{ slip.total_liters }} L</p>
-                            </div>
-                            <div>
-                                <p class="text-gray-600">Total Cost</p>
-                                <p class="text-lg font-bold text-blue-900">₱{{ slip.cost|intcomma }}</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                      <div class="col-span-2 border-t border-gray-200 pt-4">
+                          <h3 class="font-semibold text-blue-900 mb-2">FUEL INFORMATION</h3>
+                          <div class="grid grid-cols-3 gap-4">
+                              <div>
+                                  <p class="text-gray-600">Price per Liter</p>
+                                  <p class="text-lg font-bold text-blue-900">₱{{ slip.FUEL_PRICE|floatformat:2 }}</p>
+                              </div>
+                              <div>
+                                  <p class="text-gray-600">Liters Dispensed</p>
+                                  <p class="text-lg font-bold text-blue-900">{{ slip.total_liters|floatformat:2 }} L</p>
+                              </div>
+                              <div>
+                                  <p class="text-gray-600">Total Cost</p>
+                                  <p class="text-lg font-bold text-blue-900">₱{{ slip.cost|floatformat:2 }}</p>
+                              </div>
+                          </div>
+                      </div>
+                  </div>
             </div>
-
-            <!-- Authorization Section -->
             <div class="absolute bottom-0 w-full px-4 pb-4">
                 <div class="grid grid-cols-2 gap-4 text-xs">
                     <div class="border-t-2 border-gray-300 pt-2">
@@ -81,7 +79,6 @@
         {% endfor %}
     </div>
 
-    <!-- Action Buttons -->
     <div class="mt-8 text-center print:hidden">
         <button onclick="window.print()" class="bg-blue-900 text-white px-8 py-3 rounded-sm hover:bg-blue-800 transition-colors mr-4">
             Print Slips
@@ -96,7 +93,7 @@
     @media print {
         @page {
             size: A4;
-            margin: 10mm;
+            margin: 5mm;
         }
         
         body {
@@ -108,7 +105,7 @@
         .grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 8mm !important;
+            gap: 5mm !important;
         }
         
         .border-blue-900 {
@@ -116,9 +113,13 @@
         }
         
         .bg-white {
-            height: 135mm !important;
-            margin-bottom: 8mm !important;
+            height: 125mm !important;
+            margin-bottom: 5mm !important;
             page-break-inside: avoid;
+        }
+        
+        .grid > div:nth-child(4n) {
+            page-break-after: always;
         }
     }
 </style>

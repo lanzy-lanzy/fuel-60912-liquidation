@@ -1,7 +1,11 @@
-from django.db import models
 from django.core.exceptions import ValidationError
-import datetime
+from django.db import models
 import random
+from datetime import date
+
+def validate_date_range(value):
+    if value < date(2024, 10, 13):  # Only lower bound enforced
+        raise ValidationError('Date must be on or after 2024-10-13')
 
 class Driver(models.Model):
     name = models.CharField(max_length=100, unique=True)
@@ -22,37 +26,24 @@ class Vehicle(models.Model):
         return f"{self.name} ({self.plate_number})"
 
 class FuelConsumption(models.Model):
-    driver = models.ForeignKey(Driver, on_delete=models.CASCADE)
+    driver = models.ForeignKey('Driver', on_delete=models.CASCADE)
     date = models.DateField()
-    number_of_trips = models.PositiveIntegerField()
-    purpose = models.CharField(max_length=200, help_text="Trip purpose/description")
+    trip_number = models.PositiveIntegerField(default=1)
+    number_of_trips = models.PositiveIntegerField(default=1)
+    purpose = models.CharField(max_length=255, default="Transport Patient")
     total_liters = models.FloatField()
     cost = models.FloatField()
+    vehicle = models.CharField(max_length=100)  # Add this new field
+    MIN_LITERS_PER_TRIP = 17.69
+    MAX_LITERS_PER_TRIP = 26.54
+    FUEL_PRICE = 56.50 #per liter
+    TOTAL_FUEL_ALLOCATION = 7499.68  # 423731.92 / 56.50 ≈ 7500 liters
 
-    FUEL_PRICE = 56.50
-    TOTAL_FUEL_ALLOCATION = 7499.68
-    MIN_LITERS_PER_TRIP = 15
-    MAX_LITERS_PER_TRIP = 25
-
-    @property
-    def vehicle(self):
-        return self.driver.vehicle
+    def __str__(self):
+        return f"{self.driver} on {self.date} (Trip {self.trip_number})"
 
     class Meta:
-        unique_together = ('driver', 'date')
-        verbose_name = "Fuel Consumption"
-        verbose_name_plural = "Fuel Consumptions"
-
-    def clean(self):
-        super().clean()
-        start_date = datetime.date(2024, 10, 13)
-        end_date = datetime.date(2024, 12, 31)
-        
-        if not (start_date <= self.date <= end_date):
-            raise ValidationError(
-                f"Date must be between {start_date.strftime('%Y-%m-%d')} "
-                f"and {end_date.strftime('%Y-%m-%d')}"
-            )
+        unique_together = ('driver', 'date', 'trip_number')
 
     def save(self, *args, **kwargs):
         if not self.total_liters:
