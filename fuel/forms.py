@@ -75,6 +75,18 @@ class FuelConsumptionForm(forms.ModelForm):
         self.fields['purpose'].initial = "Transport Patient"
         self.fields['cost'].label = "Cost (₱)"
         self.fields['total_liters'].label = "Fuel Amount (Liters)"
+        self.fields['total_liters'].widget.attrs['placeholder'] = 'e.g., 50.00'
+        self.fields['cost'].widget.attrs['placeholder'] = 'e.g., 3,000.00'
+        self.fields['trip_number'].widget.attrs['placeholder'] = 'e.g., 001'
+        self.fields['number_of_trips'].widget.attrs['placeholder'] = 'e.g., 1'
+        self.fields['purpose'].widget.attrs['class'] = 'form-control'
+
+        # Ensure every widget gets the styled form-control class
+        # (driver / vehicle / destination / purpose render as <select>)
+        for field in self.fields.values():
+            classes = field.widget.attrs.get('class', '')
+            if 'form-control' not in classes:
+                field.widget.attrs['class'] = (classes + ' form-control').strip()
 
         # Set up destination choices based on vehicle type
         # If we have an instance (editing), use its vehicle type

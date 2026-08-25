@@ -3,15 +3,18 @@
 {% load humanize %}
 {% block title %}Saved Liquidations — FuelTrack{% endblock %}
 {% block content %}
-<div class="mx-auto max-w-6xl">
+<div class="w-full">
     <div class="flex flex-wrap items-center justify-between gap-4">
         <div>
             <h1 class="text-2xl font-black tracking-tight">Saved Liquidation Reports</h1>
             <p class="text-sm text-slate-500">History • reprint • edit • PDF export</p>
         </div>
-        <a href="{% url 'liquidation_report' %}" class="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-black">
-            <span class="h-6 w-6 rounded-lg bg-white/15 grid place-items-center">+</span> New / Edit Report
-        </a>
+        <div class="flex flex-wrap gap-2">
+            <a href="{% url 'liquidation_report_new' %}" class="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-black">
+                <span class="h-6 w-6 rounded-lg bg-white/15 grid place-items-center">+</span> New Blank Report
+            </a>
+            <a href="{% url 'liquidation_report' %}" class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold hover:bg-slate-50">New from Fuel Trips</a>
+        </div>
     </div>
 
     {% if reports %}
@@ -19,26 +22,26 @@
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
                 <thead class="bg-slate-900 text-white text-xs tracking-wide uppercase">
-                    <tr><th class="px-3 py-3 text-left font-semibold">#</th><th class="px-3 py-3 text-left font-semibold">Report Date</th><th class="px-3 py-3 text-right font-semibold">Principal</th><th class="px-3 py-3 text-right font-semibold">Total Spent</th><th class="px-3 py-3 text-right font-semibold">WHT 5%<span class="block text-[8px] normal-case text-slate-400">(÷1.12×5%)</span></th><th class="px-3 py-3 text-right font-semibold">WHT 1%<span class="block text-[8px] normal-case text-slate-400">(÷1.12×1%)</span></th><th class="px-3 py-3 text-right font-semibold bg-amber-600 text-white">Total WHT<span class="block text-[8px] normal-case text-amber-100">(5%+1%)</span></th><th class="px-3 py-3 text-right font-semibold">Net</th><th class="px-3 py-3 text-right font-semibold bg-blue-700 text-white">Unutilized<span class="block text-[8px] normal-case text-blue-100">(Principal−Total)</span></th><th class="px-3 py-3 text-left font-semibold">Refund OR #</th><th class="px-3 py-3 text-right font-semibold">Refund Amt</th><th class="px-3 py-3 text-left font-semibold">Check #</th><th class="px-3 py-3 text-left font-semibold">Saved At</th><th class="px-3 py-3 text-right font-semibold">Actions</th></tr>
+                    <tr><th class="px-2.5 py-2.5 text-left font-semibold">#</th><th class="px-2.5 py-2.5 text-left font-semibold">Report Date</th><th class="px-2.5 py-2.5 text-right font-semibold">Principal</th><th class="px-2.5 py-2.5 text-right font-semibold">Total Spent</th><th class="px-2.5 py-2.5 text-right font-semibold">WHT 5%<span class="block text-[8px] normal-case text-slate-400">(÷1.12×5%)</span></th><th class="px-2.5 py-2.5 text-right font-semibold">WHT 1%<span class="block text-[8px] normal-case text-slate-400">(÷1.12×1%)</span></th><th class="px-2.5 py-2.5 text-right font-semibold bg-amber-600 text-white">Total WHT<span class="block text-[8px] normal-case text-amber-100">(5%+1%)</span></th><th class="px-2.5 py-2.5 text-right font-semibold">Net</th><th class="px-2.5 py-2.5 text-right font-semibold bg-blue-700 text-white">Unutilized<span class="block text-[8px] normal-case text-blue-100">(Principal−Total)</span></th><th class="px-2.5 py-2.5 text-left font-semibold">Refund OR #</th><th class="px-2.5 py-2.5 text-right font-semibold">Refund Amt</th><th class="px-2.5 py-2.5 text-left font-semibold">Check #</th><th class="px-2.5 py-2.5 text-left font-semibold">Saved At</th><th class="px-2.5 py-2.5 text-right font-semibold">Actions</th></tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
                     {% for report in reports %}
                     <tr class="hover:bg-slate-50">
-                        <td class="px-3 py-3 font-mono text-xs font-bold">#{{ report.pk }}</td>
-                        <td class="px-3 py-3 font-mono text-xs">{{ report.report_date|date:"m/d/Y" }}</td>
-                        <td class="px-3 py-3 text-right font-mono text-xs font-semibold">{% if report.principal_display %}₱{{ report.principal_display }}{% else %}—{% endif %}</td>
-                        <td class="px-3 py-3 text-right font-mono text-xs font-black text-slate-900">₱{{ report.total_display }}</td>
-                        <td class="px-3 py-3 text-right font-mono text-xs font-semibold text-amber-700">₱{{ report.wht5_display }}</td>
-                        <td class="px-3 py-3 text-right font-mono text-xs font-semibold text-amber-700">₱{{ report.wht1_display }}</td>
-                        <td class="px-3 py-3 text-right font-mono text-xs font-black text-amber-800 bg-amber-50">₱{{ report.wht_display }}</td>
-                        <td class="px-3 py-3 text-right font-mono text-xs font-bold text-emerald-700 bg-emerald-50/40">₱{{ report.net_display }}</td>
-                        <td class="px-3 py-3 text-right font-mono text-xs font-black text-blue-700 bg-blue-50">{% if report.unutilized_display %}₱{{ report.unutilized_display }}{% else %}—{% endif %}</td>
-                        <td class="px-3 py-3 font-mono text-xs font-semibold text-slate-700">{% if report.refund_or_number_display %}{{ report.refund_or_number_display }}{% else %}—{% endif %}</td>
-                        <td class="px-3 py-3 text-right font-mono text-xs font-semibold text-slate-900">{% if report.amount_refund_per_or_display %}₱{{ report.amount_refund_per_or_display }}{% else %}—{% endif %}</td>
-                        <td class="px-3 py-3 font-mono text-xs">{{ report.check_number|default:"—"}}</td>
-                        <td class="px-3 py-3 font-mono text-xs text-slate-500">{{ report.created_at|date:"M d, Y h:i A" }}</td>
-                        <td class="px-4 py-3">
-                            <div class="flex justify-end gap-1">
+                        <td class="px-2.5 py-2.5 font-mono text-xs font-bold">#{{ report.pk }}</td>
+                        <td class="px-2.5 py-2.5 font-mono text-xs">{{ report.report_date|date:"m/d/Y" }}</td>
+                        <td class="px-2.5 py-2.5 text-right font-mono text-xs font-semibold">{% if report.principal_display %}₱{{ report.principal_display }}{% else %}—{% endif %}</td>
+                        <td class="px-2.5 py-2.5 text-right font-mono text-xs font-black text-slate-900">₱{{ report.total_display }}</td>
+                        <td class="px-2.5 py-2.5 text-right font-mono text-xs font-semibold text-amber-700">₱{{ report.wht5_display }}</td>
+                        <td class="px-2.5 py-2.5 text-right font-mono text-xs font-semibold text-amber-700">₱{{ report.wht1_display }}</td>
+                        <td class="px-2.5 py-2.5 text-right font-mono text-xs font-black text-amber-800 bg-amber-50">₱{{ report.wht_display }}</td>
+                        <td class="px-2.5 py-2.5 text-right font-mono text-xs font-bold text-emerald-700 bg-emerald-50/40">₱{{ report.net_display }}</td>
+                        <td class="px-2.5 py-2.5 text-right font-mono text-xs font-black text-blue-700 bg-blue-50">{% if report.unutilized_display %}₱{{ report.unutilized_display }}{% else %}—{% endif %}</td>
+                        <td class="px-2.5 py-2.5 font-mono text-xs font-semibold text-slate-700">{% if report.refund_or_number_display %}{{ report.refund_or_number_display }}{% else %}—{% endif %}</td>
+                        <td class="px-2.5 py-2.5 text-right font-mono text-xs font-semibold text-slate-900">{% if report.amount_refund_per_or_display %}₱{{ report.amount_refund_per_or_display }}{% else %}—{% endif %}</td>
+                        <td class="px-2.5 py-2.5 font-mono text-xs">{{ report.check_number|default:"—"}}</td>
+                        <td class="px-2.5 py-2.5 font-mono text-xs text-slate-500">{{ report.created_at|date:"M d, Y h:i A" }}</td>
+                        <td class="px-2 py-2.5">
+                            <div class="flex justify-end gap-0.5">
                                 <a href="{% url 'liquidation_report_reprint' report.pk %}" class="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold hover:bg-slate-50">View</a>
                                 <a href="{% url 'liquidation_report_edit' report.pk %}" class="rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-black">Edit</a>
                                 <a href="{% url 'export_liquidation_report_saved_pdf' report.pk %}" class="rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-blue-700">PDF</a>
@@ -54,7 +57,7 @@
     <div class="mt-6 rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center shadow-soft">
         <div class="mx-auto h-12 w-12 rounded-2xl bg-slate-100 grid place-items-center text-slate-400">≡</div>
         <p class="mt-3 text-sm font-semibold">No saved reports yet</p>
-        <p class="text-sm text-slate-500">Fill in the <a href="{% url 'liquidation_report' %}" class="font-semibold text-blue-600 underline">liquidation report</a> and click <b>Save Report</b>.</p>
+        <p class="text-sm text-slate-500">Start a <a href="{% url 'liquidation_report_new' %}" class="font-semibold text-blue-600 underline">new blank liquidation</a> and click <b>+ Add Row</b>, or fill in the <a href="{% url 'liquidation_report' %}" class="font-semibold text-blue-600 underline">report from fuel trips</a> and click <b>Save Report</b>.</p>
     </div>
     {% endif %}
 </div>

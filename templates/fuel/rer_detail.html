@@ -2,53 +2,239 @@
 {% load humanize %}
 {% block title %}RER {{ receipt.rer_no|default:receipt.pk }} — FuelTrack{% endblock %}
 {% block content %}
-<div class="mx-auto max-w-3xl">
-    <a href="{% url 'rer_list' %}" class="text-sm font-medium text-slate-600 hover:text-slate-900">← Back to RER list</a>
-    <div class="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft">
-        <div class="bg-slate-900 px-6 py-5 text-white">
-            <p class="text-[11px] font-bold tracking-widest text-blue-200 uppercase">Reimbursement Expense Receipt • {{ gallery_images|length }} image{{ gallery_images|length|pluralize }}</p>
-            <h1 class="text-xl font-black">RER {{ receipt.rer_no|default:"—" }} • {{ receipt.receipt_date|date:"M d, Y" }}</h1>
-            <p class="text-sm text-blue-100/70">{{ receipt.received_from_name|default:"—" }} — ₱{{ receipt.amount_in_figures|floatformat:2|intcomma }} {% if gallery_images %}• {{ gallery_images|length }} image{{ gallery_images|length|pluralize }} will print in grid{% elif has_legacy_image %}• 1 legacy image{% endif %}</p>
-        </div>
-        <div class="p-6">
-            {% if gallery_images %}
-            <div class="rounded-xl border border-slate-200 overflow-hidden mb-6">
-                <p class="bg-slate-50 px-3 py-2 text-xs font-bold tracking-widest text-slate-500 uppercase">Attached Images — {{ gallery_images|length }} image{{ gallery_images|length|pluralize }} (will print in responsive grid, properly placed)</p>
-                <div class="p-3 bg-white">
-                    <div class="grid {% if gallery_images|length == 1 %}grid-cols-1 max-w-md mx-auto{% elif gallery_images|length == 2 %}grid-cols-2{% elif gallery_images|length <= 4 %}grid-cols-2{% else %}grid-cols-3{% endif %} gap-3">
-                        {% for img in gallery_images %}
-                        <div class="rounded-lg border border-slate-200 overflow-hidden bg-white flex flex-col">
-                            <img src="{{ img.image.url }}" alt="RER image {{ forloop.counter }}" class="w-full h-40 object-contain bg-white p-1">
-                            <p class="text-center text-[11px] text-slate-400 py-1 border-t border-slate-100">Image {{ forloop.counter }}</p>
-                        </div>
-                        {% endfor %}
+<div class="mx-auto w-full max-w-5xl">
+    <a href="{% url 'rer_list' %}" class="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-900 transition">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        Back to RER list
+    </a>
+
+    <!-- Hero header -->
+    <div class="mt-4 overflow-hidden rounded-[20px] bg-gradient-to-br from-slate-900 to-indigo-900 p-[1px] shadow-card">
+        <div class="relative overflow-hidden rounded-[19px] bg-gradient-to-br from-slate-900 via-slate-900 to-indigo-950 px-6 py-6 sm:px-8 sm:py-7 text-white">
+            <div class="absolute -top-12 -right-12 h-44 w-44 rounded-full bg-emerald-500/20 blur-3xl"></div>
+            <div class="absolute -bottom-16 left-1/3 h-40 w-40 rounded-full bg-blue-500/15 blur-3xl"></div>
+            <div class="relative flex flex-wrap items-start justify-between gap-5">
+                <div class="min-w-0">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-bold tracking-[0.14em] uppercase backdrop-blur">
+                            <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span> Reimbursement Expense Receipt
+                        </span>
+                        <span class="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[11px] font-semibold text-blue-100 backdrop-blur">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                            {{ receipt.receipt_date|date:"M d, Y" }}
+                        </span>
+                        {% if gallery_images %}
+                        <span class="inline-flex items-center gap-1.5 rounded-full border border-emerald-300/30 bg-emerald-500/15 px-3 py-1 text-[11px] font-semibold text-emerald-200 backdrop-blur">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                            {{ gallery_images|length }} image{{ gallery_images|length|pluralize }}
+                        </span>
+                        {% endif %}
                     </div>
-                    <p class="text-[11px] text-slate-400 mt-2 text-center">Layout on print/PDF: 1→centered large • 2→side-by-side • 3–4→2×2 • 5+→3 columns — all with object-fit contain (no distortion).</p>
+                    <h1 class="mt-3 text-2xl sm:text-3xl font-black tracking-tight">
+                        RER <span class="font-mono">{{ receipt.rer_no|default:"—" }}</span>
+                    </h1>
+                    <p class="mt-1 text-sm text-blue-100/70">
+                        <span class="font-semibold text-blue-100">{{ receipt.received_from_name|default:"—" }}</span>
+                        {% if receipt.received_from_designation %}<span class="text-blue-200/50 mx-1.5">•</span>{{ receipt.received_from_designation }}{% endif %}
+                        {% if receipt.entity_name %}<span class="text-blue-200/50 mx-1.5">•</span>{{ receipt.entity_name }}{% endif %}
+                    </p>
+                </div>
+                <div class="shrink-0 rounded-2xl border border-white/15 bg-white/10 px-5 py-4 text-right backdrop-blur">
+                    <p class="text-[10px] font-bold tracking-[0.18em] text-emerald-200 uppercase">Amount</p>
+                    <p class="mt-1 font-mono text-2xl sm:text-3xl font-black tracking-tight">₱{{ receipt.amount_in_figures|floatformat:2|intcomma }}</p>
                 </div>
             </div>
-            {% elif has_legacy_image %}
-            <div class="rounded-xl border border-amber-200 overflow-hidden mb-6">
-                <p class="bg-amber-50 px-3 py-2 text-xs font-bold tracking-widest text-amber-800 uppercase">Legacy Attached Image (printed on top)</p>
-                <img src="{{ receipt.attached_image.url }}" alt="RER legacy attachment" class="w-full max-h-[320px] object-contain bg-white">
-                <p class="px-3 py-2 text-xs text-amber-700 bg-amber-50/50">This uses the old single-image field. Edit to add multiple images in a proper grid for print/PDF.</p>
-            </div>
-            {% else %}
-            <div class="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-500 mb-6">No images attached — upload one or more to print on top of RER in a proper grid. Each image will be contained correctly without stretch.
-                <div class="mt-2"><a href="{% url 'rer_edit' receipt.pk %}" class="text-blue-600 underline font-semibold">Add images</a></div>
-            </div>
-            {% endif %}
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                <div><b>Payee:</b> {{ receipt.payee_signature_name|default:"—" }}</div>
-                <div><b>Witness:</b> {{ receipt.witness_signature_name|default:"—" }}</div>
-                <div class="sm:col-span-2"><b>In payment for:</b> {{ receipt.in_payment_for|default:"—"|linebreaksbr }}</div>
-            </div>
         </div>
-        <div class="border-t border-slate-100 bg-slate-50/50 px-6 py-3 flex flex-wrap justify-end gap-2">
-            <a href="{% url 'rer_edit' receipt.pk %}" class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Edit &amp; Manage Images</a>
-            <a href="{% url 'rer_print' receipt.pk %}" target="_blank" class="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white">Print (Images+RER)</a>
-            <a href="{% url 'rer_export_pdf' receipt.pk %}" target="_blank" class="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white">Export PDF (Images+RER)</a>
-            {% if receipt.petty_cash_voucher %}<a href="{% url 'pcv_print' receipt.petty_cash_voucher.pk %}" target="_blank" class="rounded-xl bg-white border border-slate-200 px-4 py-2 text-sm font-semibold">Print PCV</a>{% endif %}
-            <a href="{% url 'rer_delete' receipt.pk %}" class="rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-700">Delete</a>
+    </div>
+
+    <!-- Stat tiles -->
+    <div class="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 to-white p-4 shadow-soft">
+            <div class="flex items-center justify-between">
+                <p class="text-[10px] font-bold tracking-[0.16em] text-blue-500 uppercase">RER No.</p>
+                <span class="grid h-8 w-8 place-items-center rounded-xl bg-blue-100 text-blue-600">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
+                </span>
+            </div>
+            <p class="mt-2 font-mono text-xl font-black text-blue-900">{{ receipt.rer_no|default:"—" }}</p>
+        </div>
+        <div class="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-white p-4 shadow-soft">
+            <div class="flex items-center justify-between">
+                <p class="text-[10px] font-bold tracking-[0.16em] text-emerald-600 uppercase">Images Attached</p>
+                <span class="grid h-8 w-8 place-items-center rounded-xl bg-emerald-100 text-emerald-600">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                </span>
+            </div>
+            <p class="mt-2 font-mono text-xl font-black text-emerald-800">{% if gallery_images %}{{ gallery_images|length }}{% elif has_legacy_image %}1<span class="text-sm font-semibold text-amber-600 ml-1">legacy</span>{% else %}<span class="text-slate-300">0</span>{% endif %}</p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-4 shadow-soft">
+            <div class="flex items-center justify-between">
+                <p class="text-[10px] font-bold tracking-[0.16em] text-slate-500 uppercase">Linked PCV</p>
+                <span class="grid h-8 w-8 place-items-center rounded-xl bg-slate-100 text-slate-500">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                </span>
+            </div>
+            <p class="mt-2 font-mono text-xl font-black text-slate-900">{% if receipt.petty_cash_voucher %}{{ receipt.petty_cash_voucher.voucher_no|default:receipt.petty_cash_voucher.pk }}{% else %}<span class="text-slate-300">—</span>{% endif %}</p>
+        </div>
+    </div>
+
+    <!-- Image gallery -->
+    {% if gallery_images %}
+    <div class="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft">
+        <div class="flex items-center gap-2.5 border-b border-slate-100 bg-slate-50/70 px-5 py-3.5">
+            <span class="grid h-8 w-8 place-items-center rounded-xl bg-emerald-600 text-white">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+            </span>
+            <p class="text-xs font-black tracking-[0.16em] text-slate-500 uppercase">Attached Images — {{ gallery_images|length }} image{{ gallery_images|length|pluralize }}</p>
+        </div>
+        <div class="p-4">
+            <div class="grid {% if gallery_images|length == 1 %}grid-cols-1 max-w-md mx-auto{% elif gallery_images|length == 2 %}grid-cols-2{% elif gallery_images|length <= 4 %}grid-cols-2{% else %}grid-cols-3{% endif %} gap-3">
+                {% for img in gallery_images %}
+                <div class="group relative overflow-hidden rounded-xl border border-slate-200 bg-white">
+                    <img src="{{ img.image.url }}" alt="RER image {{ forloop.counter }}" class="w-full h-44 object-contain bg-slate-50 p-2 transition group-hover:scale-[1.02]">
+                    <div class="flex items-center justify-center gap-1.5 border-t border-slate-100 bg-slate-50/80 py-1.5">
+                        <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
+                        <span class="text-[10px] font-bold tracking-widest text-slate-400 uppercase">Image {{ forloop.counter }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            <p class="mt-3 text-center text-[11px] text-slate-400">Print layout: 1 → centered large • 2 → side-by-side • 3–4 → 2×2 grid • 5+ → 3 columns — all with object-fit contain (no distortion).</p>
+        </div>
+    </div>
+    {% elif has_legacy_image %}
+    <div class="mt-5 overflow-hidden rounded-2xl border border-amber-200 bg-white shadow-soft">
+        <div class="flex items-center gap-2.5 border-b border-amber-100 bg-amber-50/70 px-5 py-3.5">
+            <span class="grid h-8 w-8 place-items-center rounded-xl bg-amber-500 text-white">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>
+            </span>
+            <p class="text-xs font-black tracking-[0.16em] text-amber-700 uppercase">Legacy Single Image</p>
+        </div>
+        <div class="p-4">
+            <img src="{{ receipt.attached_image.url }}" alt="RER legacy attachment" class="w-full max-h-[360px] object-contain bg-slate-50 rounded-xl">
+            <p class="mt-2 text-xs text-amber-700 bg-amber-50 rounded-xl px-3 py-2">This uses the old single-image field. Edit to add multiple images in a proper grid for print/PDF.</p>
+        </div>
+    </div>
+    {% else %}
+    <div class="mt-5 rounded-2xl border border-dashed border-slate-300 bg-slate-50/50 p-8 text-center">
+        <div class="mx-auto h-12 w-12 rounded-2xl bg-slate-100 grid place-items-center text-slate-400">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+        </div>
+        <p class="mt-3 text-sm font-semibold text-slate-700">No images attached</p>
+        <p class="text-sm text-slate-500">Upload one or more images to print on top of RER in a proper grid.</p>
+        <a href="{% url 'rer_edit' receipt.pk %}" class="mt-3 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+            Add Images
+        </a>
+    </div>
+    {% endif %}
+
+    <!-- Details -->
+    <div class="mt-5 grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <!-- Payee card -->
+        <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft">
+            <div class="flex items-center gap-2.5 border-b border-slate-100 bg-slate-50/70 px-5 py-3.5">
+                <span class="grid h-8 w-8 place-items-center rounded-xl bg-slate-900 text-white">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                </span>
+                <p class="text-xs font-black tracking-[0.16em] text-slate-500 uppercase">Payee Information</p>
+            </div>
+            <dl class="divide-y divide-slate-50 px-5 py-2 text-sm">
+                <div class="py-2.5">
+                    <dt class="text-[10px] font-bold tracking-[0.14em] text-slate-400 uppercase">Received From</dt>
+                    <dd class="mt-0.5 font-semibold text-slate-800">{{ receipt.received_from_name|default:"—" }}</dd>
+                </div>
+                <div class="py-2.5">
+                    <dt class="text-[10px] font-bold tracking-[0.14em] text-slate-400 uppercase">Designation</dt>
+                    <dd class="mt-0.5 font-medium text-slate-800">{{ receipt.received_from_designation|default:"—" }}</dd>
+                </div>
+                <div class="py-2.5">
+                    <dt class="text-[10px] font-bold tracking-[0.14em] text-slate-400 uppercase">Payee Name</dt>
+                    <dd class="mt-0.5 inline-flex items-center gap-1.5 font-semibold text-slate-800">
+                        <span class="grid h-5 w-5 place-items-center rounded-full bg-blue-100 text-[9px] font-black text-blue-700">{{ receipt.payee_signature_name|default:"?"|slice:":1" }}</span>
+                        {{ receipt.payee_signature_name|default:"—" }}
+                    </dd>
+                </div>
+                <div class="py-2.5 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <dt class="text-[10px] font-bold tracking-[0.14em] text-slate-400 uppercase">Residence Cert. No.</dt>
+                        <dd class="mt-0.5 font-mono text-sm font-semibold text-slate-800">{{ receipt.payee_residence_cert_no|default:"—" }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-[10px] font-bold tracking-[0.14em] text-slate-400 uppercase">Residence Date</dt>
+                        <dd class="mt-0.5 font-mono text-sm font-semibold text-slate-800">{{ receipt.payee_residence_date|date:"M d, Y"|default:"—" }}</dd>
+                    </div>
+                </div>
+            </dl>
+        </div>
+
+        <!-- Witness card -->
+        <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft">
+            <div class="flex items-center gap-2.5 border-b border-slate-100 bg-slate-50/70 px-5 py-3.5">
+                <span class="grid h-8 w-8 place-items-center rounded-xl bg-blue-600 text-white">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg>
+                </span>
+                <p class="text-xs font-black tracking-[0.16em] text-slate-500 uppercase">Witness Information</p>
+            </div>
+            <dl class="divide-y divide-slate-50 px-5 py-2 text-sm">
+                <div class="py-2.5">
+                    <dt class="text-[10px] font-bold tracking-[0.14em] text-slate-400 uppercase">Witness Name</dt>
+                    <dd class="mt-0.5 inline-flex items-center gap-1.5 font-semibold text-slate-800">
+                        <span class="grid h-5 w-5 place-items-center rounded-full bg-emerald-100 text-[9px] font-black text-emerald-700">{{ receipt.witness_signature_name|default:"?"|slice:":1" }}</span>
+                        {{ receipt.witness_signature_name|default:"—" }}
+                    </dd>
+                </div>
+                <div class="py-2.5">
+                    <dt class="text-[10px] font-bold tracking-[0.14em] text-slate-400 uppercase">Residence Cert. No.</dt>
+                    <dd class="mt-0.5 font-mono text-sm font-semibold text-slate-800">{{ receipt.witness_residence_cert_no|default:"—" }}</dd>
+                </div>
+                <div class="py-2.5">
+                    <dt class="text-[10px] font-bold tracking-[0.14em] text-slate-400 uppercase">Residence Date & Place</dt>
+                    <dd class="mt-0.5 text-sm text-slate-800">{{ receipt.witness_residence_date|date:"M d, Y"|default:"—" }}{% if receipt.witness_residence_place %} — {{ receipt.witness_residence_place }}{% endif %}</dd>
+                </div>
+                <div class="py-2.5">
+                    <dt class="text-[10px] font-bold tracking-[0.14em] text-slate-400 uppercase">Address</dt>
+                    <dd class="mt-0.5 text-sm text-slate-800">{{ receipt.witness_address|default:"—" }}</dd>
+                </div>
+            </dl>
+        </div>
+    </div>
+
+    <!-- In payment for -->
+    <div class="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft">
+        <div class="flex items-center gap-2.5 border-b border-slate-100 bg-slate-50/70 px-5 py-3.5">
+            <span class="grid h-8 w-8 place-items-center rounded-xl bg-amber-500 text-white">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </span>
+            <p class="text-xs font-black tracking-[0.16em] text-slate-500 uppercase">In Payment For</p>
+        </div>
+        <div class="px-5 py-4 text-sm leading-6 text-slate-700">
+            {{ receipt.in_payment_for|default:"—"|linebreaksbr }}
+        </div>
+    </div>
+
+    <!-- Action bar -->
+    <div class="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-3.5 shadow-soft">
+        <p class="text-xs text-slate-400">Created {{ receipt.created_at|date:"M d, Y h:i A" }} • Updated {{ receipt.updated_at|date:"M d, Y h:i A" }}</p>
+        <div class="flex flex-wrap gap-2">
+            <a href="{% url 'rer_edit' receipt.pk %}" class="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow transition hover:bg-black hover:shadow-md">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg> Edit
+            </a>
+            <a href="{% url 'rer_print' receipt.pk %}" target="_blank" class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow transition hover:bg-blue-700 hover:shadow-md">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg> Print
+            </a>
+            <a href="{% url 'rer_export_pdf' receipt.pk %}" target="_blank" class="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow transition hover:bg-emerald-700 hover:shadow-md">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="M9 15h6"/></svg> PDF
+            </a>
+            {% if receipt.petty_cash_voucher %}
+            <a href="{% url 'pcv_print' receipt.petty_cash_voucher.pk %}" target="_blank" class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 hover:border-slate-300">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                Print PCV
+            </a>
+            {% endif %}
+            <a href="{% url 'rer_delete' receipt.pk %}" class="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-600 transition hover:bg-red-50 hover:border-red-300">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Delete
+            </a>
         </div>
     </div>
 </div>

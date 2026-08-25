@@ -57,7 +57,7 @@
 </style>
 {% endblock %}
 {% block content %}
-<div class="mx-auto max-w-5xl">
+<div class="w-full">
     <div class="no-print flex flex-wrap gap-2 mb-4">
         <button onclick="window.print()" class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-50">Print</button>
         {% if readonly or editing %}
@@ -69,6 +69,12 @@
         <a href="{% url 'saved_liquidation_reports' %}" class="rounded-xl bg-white border border-slate-200 px-4 py-2 text-sm font-semibold hover:bg-slate-50">Saved Reports</a>
         <a href="{% url 'dashboard' %}" class="ml-auto rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-50 hidden sm:inline-flex">Dashboard</a>
     </div>
+
+    {% if fresh %}
+    <div class="no-print mb-4 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+        <b>Fresh entry</b> — this is a blank liquidation. Click <b>+ Add Row</b> to manually enter Date, OR #, Fuel Type and Amount. Nothing is pulled from fuel trip records.
+    </div>
+    {% endif %}
 
     <div class="liq-sheet overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft">
         <div class="bg-slate-900 px-6 py-5 text-center text-white">

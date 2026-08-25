@@ -2063,8 +2063,12 @@ def export_fuel_consumption_report_pdf(request):
     return response
 
 
-def liquidation_report_view(request):
-    trips = FuelConsumption.objects.select_related('driver').order_by('date', 'reference_number')
+def liquidation_report_view(request, fresh=False):
+    # fresh=True: start a blank report with NO rows derived from FuelConsumption trips
+    if fresh:
+        trips = FuelConsumption.objects.none()
+    else:
+        trips = FuelConsumption.objects.select_related('driver').order_by('date', 'reference_number')
     setting, _ = LiquidationSetting.objects.get_or_create(pk=1)
 
     if request.method == 'POST':
@@ -2177,7 +2181,10 @@ def liquidation_report_view(request):
             if len(new_entries) > 100:
                 break
 
-        trips = FuelConsumption.objects.select_related('driver').order_by('date', 'reference_number')
+        if fresh:
+            trips = FuelConsumption.objects.none()
+        else:
+            trips = FuelConsumption.objects.select_related('driver').order_by('date', 'reference_number')
         saved_report = LiquidationReport.objects.create(
             principal_amount=setting.principal_amount,
             check_number=setting.check_number or '',
@@ -2272,8 +2279,14 @@ def liquidation_report_view(request):
         'amount_reimbursed': f"{setting.amount_reimbursed:,.2f}" if setting.amount_reimbursed else '',
         'check_number': setting.check_number or '',
         'today': date.today(),
+        'fresh': fresh,
     }
     return render(request, 'fuel/liquidation_report.html', context)
+
+
+def liquidation_report_new(request):
+    """Fresh / blank liquidation report — enter everything manually, no trip data."""
+    return liquidation_report_view(request, fresh=True)
 
 
 def saved_liquidation_reports(request):

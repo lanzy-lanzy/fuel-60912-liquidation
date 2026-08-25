@@ -12,20 +12,50 @@
         padding: 0.7rem 0.9rem;
         font-size: 0.9rem;
         font-weight: 500;
-        transition: all 0.15s;
+        color: #0f172a;
+        transition: border-color .15s, background .15s, box-shadow .15s;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
     }
+    .form-control::placeholder { color: #94a3b8; font-weight: 400; }
+    .form-control:hover { border-color: #cbd5e1; background: #fff; }
     .form-control:focus {
         outline: none;
         border-color: #2563eb;
         background: #fff;
-        box-shadow: 0 0 0 4px rgba(37,99,235,0.1);
+        box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
     }
-    select.form-control { background-color: #f8fafc; }
-    .form-control:disabled { opacity: 0.6; }
+    /* Custom styled dropdowns */
+    select.form-control {
+        -webkit-appearance: none;
+        appearance: none;
+        background-color: #f8fafc;
+        background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 0.85rem center;
+        background-size: 1em;
+        padding-right: 2.5rem;
+        cursor: pointer;
+    }
+    select.form-control:hover {
+        background-color: #fff;
+        background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232563eb' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    }
+    select.form-control:focus { background-color: #fff; }
+    select.form-control option { font-weight: 500; color: #0f172a; padding: 0.5rem; }
+    select.form-control:invalid { color: #94a3b8; }
+    /* Date input */
+    input[type="date"].form-control { cursor: pointer; min-height: 46px; }
+    input[type="date"].form-control::-webkit-calendar-picker-indicator { cursor: pointer; opacity: .55; transition: opacity .15s; }
+    input[type="date"].form-control:hover::-webkit-calendar-picker-indicator { opacity: 1; }
+    /* Number inputs */
+    input[type="number"].form-control { font-variant-numeric: tabular-nums; }
+    /* Textarea */
+    textarea.form-control { min-height: 88px; resize: vertical; line-height: 1.55; }
+    .form-control:disabled { opacity: 0.6; cursor: not-allowed; }
 </style>
 {% endblock %}
 {% block content %}
-<div class="mx-auto max-w-3xl">
+<div class="mx-auto w-full max-w-5xl">
     <!-- header -->
     <div class="rounded-[20px] bg-slate-900 p-6 text-white relative overflow-hidden">
         <div class="absolute -top-10 -right-10 h-32 w-32 rounded-full bg-blue-500/20 blur-2xl"></div>
@@ -88,12 +118,12 @@
                 </div>
                 <div class="space-y-1.5">
                     <label for="{{ form.total_liters.id_for_label }}" class="text-[11px] font-bold tracking-widest text-slate-500 uppercase">Fuel (Liters)</label>
-                    {{ form.total_liters|floatformat:2|intcomma }}
+                    {{ form.total_liters }}
                     {% if form.total_liters.errors %}<p class="text-xs font-medium text-red-600">{{ form.total_liters.errors.0 }}</p>{% endif %}
                 </div>
                 <div class="space-y-1.5">
                     <label for="{{ form.cost.id_for_label }}" class="text-[11px] font-bold tracking-widest text-slate-500 uppercase">Cost (₱)</label>
-                    {{ form.cost|floatformat:2|intcomma }}
+                    {{ form.cost }}
                     {% if form.cost.errors %}<p class="text-xs font-medium text-red-600">{{ form.cost.errors.0 }}</p>{% endif %}
                 </div>
             </div>

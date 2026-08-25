@@ -28,6 +28,7 @@ urlpatterns = [
     path('trip-schedule/', views.trip_schedule_view, name='trip_schedule'),
     path('export/simple-fuel-consumption-pdf/', views.export_simple_fuel_consumption_pdf, name='export_simple_fuel_consumption_pdf'),
     path('liquidation-report/', views.liquidation_report_view, name='liquidation_report'),
+    path('liquidation-report/new/', views.liquidation_report_new, name='liquidation_report_new'),
     path('liquidation-saved-reports/', views.saved_liquidation_reports, name='saved_liquidation_reports'),
     path('liquidation-report/<int:report_id>/', views.liquidation_report_reprint, name='liquidation_report_reprint'),
     path('liquidation-report/<int:report_id>/edit/', views.liquidation_report_edit, name='liquidation_report_edit'),
