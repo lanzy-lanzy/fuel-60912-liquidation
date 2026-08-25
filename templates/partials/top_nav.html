@@ -88,6 +88,10 @@
                             <span class="h-8 w-8 rounded-lg bg-blue-50 text-blue-700 grid place-items-center">≡</span>
                             <span class="text-sm"><span class="block font-semibold text-slate-900 leading-none">RER + Image</span><span class="text-xs text-slate-500">Image top + RER bottom — 1 A4</span></span>
                         </a>
+                        <a href="{% url 'liquidation_report' %}" class="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-slate-50">
+                            <span class="h-8 w-8 rounded-lg bg-emerald-50 text-emerald-700 grid place-items-center">₱</span>
+                            <span class="text-sm"><span class="block font-semibold text-slate-900 leading-none">CA Liquidation</span><span class="text-xs text-slate-500">Cash Advance liquidation</span></span>
+                        </a>
                     </div>
                 </div>
             </div>
@@ -126,6 +130,7 @@
                 <p class="px-3 py-1.5 text-[11px] font-bold tracking-widest text-slate-400 uppercase">Petty Cash & RER</p>
                 <a href="{% url 'pcv_list' %}" class="flex px-3 py-2 rounded-xl text-sm hover:bg-slate-50">Petty Cash Voucher</a>
                 <a href="{% url 'rer_list' %}" class="flex px-3 py-2 rounded-xl text-sm hover:bg-slate-50">RER + Image (1 A4)</a>
+                <a href="{% url 'liquidation_report' %}" class="flex px-3 py-2 rounded-xl text-sm hover:bg-slate-50">CA Liquidation</a>
                 <a href="{% url 'fuel_new' %}" class="mt-2 flex px-3 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold justify-center">+ New Fuel Entry</a>
             </div>
         </div>

@@ -2130,6 +2130,53 @@ def liquidation_report_view(request):
         setting.check_number = request.POST.get('check_number', '').strip() or None
         setting.save()
 
+        # Collect dynamically added new rows (for new CA)
+        new_entries = []
+        idx = 0
+        while idx < 200:  # safety limit
+            has_any = any(f'new_{field}_{idx}' in request.POST for field in ['date','or','fuel','amount','vat','wht5','wht1'])
+            if not has_any:
+                # Also check if any of the keys with that idx exist at all
+                if idx > 30 and not any(k.startswith(f'new_') and k.endswith(f'_{idx}') for k in request.POST.keys()):
+                    # No more new rows beyond 30 and no key found, break
+                    if idx > 5:
+                        break
+                idx += 1
+                if idx > 100:
+                    break
+                continue
+            new_date_str = request.POST.get(f'new_date_{idx}', '').strip()
+            new_or = request.POST.get(f'new_or_{idx}', '').strip()
+            new_fuel = request.POST.get(f'new_fuel_{idx}', 'Diesel').strip() or 'Diesel'
+            new_amount_str = request.POST.get(f'new_amount_{idx}', '').strip().replace(',', '').replace('₱','')
+            new_vat = f'new_vat_{idx}' in request.POST
+            new_wht5_str = request.POST.get(f'new_wht5_{idx}', '').strip().replace(',', '').replace('₱','')
+            new_wht1_str = request.POST.get(f'new_wht1_{idx}', '').strip().replace(',', '').replace('₱','')
+            idx += 1
+            if not new_amount_str and not new_or and not new_date_str:
+                continue
+            try:
+                new_date = datetime.strptime(new_date_str, '%Y-%m-%d').date() if new_date_str else date.today()
+            except Exception:
+                new_date = date.today()
+            try:
+                new_amount = Decimal(new_amount_str) if new_amount_str else Decimal('0.00')
+            except Exception:
+                continue
+            if new_amount == 0 and not new_or:
+                continue
+            try:
+                new_wht5 = Decimal(new_wht5_str) if new_wht5_str else None
+            except Exception:
+                new_wht5 = None
+            try:
+                new_wht1 = Decimal(new_wht1_str) if new_wht1_str else None
+            except Exception:
+                new_wht1 = None
+            new_entries.append((new_date, new_or, new_fuel, new_amount, new_vat, new_wht5, new_wht1))
+            if len(new_entries) > 100:
+                break
+
         trips = FuelConsumption.objects.select_related('driver').order_by('date', 'reference_number')
         saved_report = LiquidationReport.objects.create(
             principal_amount=setting.principal_amount,
@@ -2155,6 +2202,17 @@ def liquidation_report_view(request):
                 vat_inclusive=vat_inc,
                 wht5_amount=wht5_val,
                 wht1_amount=wht1_val,
+            )
+        for new_date, new_or, new_fuel, new_amount, new_vat, new_wht5, new_wht1 in new_entries:
+            LiquidationReportEntry.objects.create(
+                report=saved_report,
+                entry_date=new_date,
+                or_number=new_or or '',
+                fuel_type=new_fuel or 'Diesel',
+                amount=new_amount,
+                vat_inclusive=new_vat,
+                wht5_amount=new_wht5,
+                wht1_amount=new_wht1,
             )
         return redirect('saved_liquidation_reports')
 
@@ -2411,6 +2469,58 @@ def liquidation_report_edit(request, report_id):
             report.amount_reimbursed = None
         report.check_number = request.POST.get('check_number', '').strip() or None
         report.save()
+        # Handle dynamically added new rows when editing
+        new_idx = 0
+        while new_idx < 200:
+            has_any = any(f'new_{field}_{new_idx}' in request.POST for field in ['date','or','fuel','amount','vat','wht5','wht1'])
+            if not has_any:
+                if new_idx > 30 and not any(k.startswith(f'new_') and k.endswith(f'_{new_idx}') for k in request.POST.keys()):
+                    if new_idx > 5:
+                        break
+                new_idx += 1
+                if new_idx > 100:
+                    break
+                continue
+            new_date_str = request.POST.get(f'new_date_{new_idx}', '').strip()
+            new_or = request.POST.get(f'new_or_{new_idx}', '').strip()
+            new_fuel = request.POST.get(f'new_fuel_{new_idx}', 'Diesel').strip() or 'Diesel'
+            new_amount_str = request.POST.get(f'new_amount_{new_idx}', '').strip().replace(',', '').replace('₱','')
+            new_vat = f'new_vat_{new_idx}' in request.POST
+            new_wht5_str = request.POST.get(f'new_wht5_{new_idx}', '').strip().replace(',', '').replace('₱','')
+            new_wht1_str = request.POST.get(f'new_wht1_{new_idx}', '').strip().replace(',', '').replace('₱','')
+            new_idx += 1
+            if not new_amount_str and not new_or and not new_date_str:
+                continue
+            try:
+                new_date = datetime.strptime(new_date_str, '%Y-%m-%d').date() if new_date_str else date.today()
+            except Exception:
+                new_date = date.today()
+            try:
+                new_amount = Decimal(new_amount_str) if new_amount_str else Decimal('0.00')
+            except Exception:
+                continue
+            if new_amount == 0 and not new_or:
+                continue
+            try:
+                new_wht5 = Decimal(new_wht5_str) if new_wht5_str else None
+            except Exception:
+                new_wht5 = None
+            try:
+                new_wht1 = Decimal(new_wht1_str) if new_wht1_str else None
+            except Exception:
+                new_wht1 = None
+            LiquidationReportEntry.objects.create(
+                report=report,
+                entry_date=new_date,
+                or_number=new_or or '',
+                fuel_type=new_fuel or 'Diesel',
+                amount=new_amount,
+                vat_inclusive=new_vat,
+                wht5_amount=new_wht5,
+                wht1_amount=new_wht1,
+            )
+            if LiquidationReportEntry.objects.filter(report=report).count() > 200:
+                break
         return redirect('liquidation_report_reprint', report_id=report.pk)
 
     rows = []
