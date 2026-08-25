@@ -20,6 +20,10 @@ db.sqlite3-journal
 media/
 staticfiles/
 
+# Generated PDFs (build artifacts - not source)
+*.pdf
+
+
 # IDE
 .vscode/
 .idea/
@@ -31,6 +35,14 @@ staticfiles/
 .DS_Store
 Thumbs.db
 bash.exe.stackdump
+
+# Local / agent artifacts (not source)
+.agents/
+.claude/
+skills-lock.json
+supabase/
+.env.local
+.env.development.local
 
 # But keep db.sqlite3 as requested - do not ignore it
 !db.sqlite3
