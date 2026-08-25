@@ -12,6 +12,12 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 
 from pathlib import Path
 import os
+from dotenv import load_dotenv
+import dj_database_url
+
+# Load .env if present (local dev)
+load_dotenv()
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -20,12 +26,26 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-fwub6r^l)=qf7)k-$$7dww8*lm#^1pc*)35bn(89hb$u1hi=qg'
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-fwub6r^l)=qf7)k-$$7dww8*lm#^1pc*)35bn(89hb$u1hi=qg')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = ['*']
+# Hosts & CSRF for Vercel / Supabase
+ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', '*').split(',') if os.environ.get('DJANGO_ALLOWED_HOSTS') else ['*']
+# Support Vercel preview/production domains
+VERCEL_URL = os.environ.get('VERCEL_URL')
+if VERCEL_URL:
+    ALLOWED_HOSTS.append(VERCEL_URL)
+    ALLOWED_HOSTS.append(f'https://{VERCEL_URL}')
+
+CSRF_TRUSTED_ORIGINS = os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', '').split(',') if os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS') else []
+# Add Vercel URL to CSRF if present
+if VERCEL_URL and f'https://{VERCEL_URL}' not in CSRF_TRUSTED_ORIGINS:
+    CSRF_TRUSTED_ORIGINS.append(f'https://{VERCEL_URL}')
+# Allow all vercel.app subdomains when on Vercel
+if os.environ.get('VERCEL'):
+    CSRF_TRUSTED_ORIGINS.append('https://*.vercel.app')
 
 
 # Application definition
@@ -42,6 +62,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -76,13 +97,25 @@ WSGI_APPLICATION = 'fueltracker.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
-
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+# Use Supabase Postgres when DATABASE_URL is set (Vercel + Supabase), else SQLite for local
+DATABASE_URL = os.environ.get('DATABASE_URL')
+if DATABASE_URL:
+    DATABASES = {
+        'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600, ssl_require=True)
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
+# Supabase direct URL fallback (optional)
+SUPABASE_DB_URL = os.environ.get('SUPABASE_DB_URL')
+if SUPABASE_DB_URL and not DATABASE_URL:
+    DATABASES = {
+        'default': dj_database_url.parse(SUPABASE_DB_URL, conn_max_age=600, ssl_require=True)
+    }
 
 
 # Password validation
@@ -119,21 +152,35 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')] if os.path.isdir(os.path.join(BASE_DIR, 'static')) else []
+# WhiteNoise compressed storage for Vercel
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-import os
 
-INSTALLED_APPS.append('fuel')
+# Extend installed apps
+if 'fuel' not in INSTALLED_APPS:
+    INSTALLED_APPS.append('fuel')
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
-STATIC_URL = '/static/'
-STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+# Trust Vercel/Supabase proxy
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+USE_X_FORWARDED_HOST = True
 
-TEMPLATES[0]['DIRS'].append(os.path.join(BASE_DIR, 'templates'))
+# Ensure templates include project templates
+if os.path.join(BASE_DIR, 'templates') not in TEMPLATES[0]['DIRS']:
+    TEMPLATES[0]['DIRS'].append(os.path.join(BASE_DIR, 'templates'))
