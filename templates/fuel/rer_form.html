@@ -1,15 +1,15 @@
 {% extends "base.html" %}
 {% block title %}{% if object %}Edit RER{% else %}New RER{% endif %} — FuelTrack{% endblock %}
 {% block extra_head %}
-<style>.form-control{width:100%;border-radius:0.75rem;border:1px solid #e2e8f0;background:#f8fafc;padding:0.7rem 0.9rem;font-size:0.9rem;font-weight:500} .form-control:focus{outline:none;border-color:#2563eb;background:#fff;box-shadow:0 0 0 4px rgba(37,99,235,.1)}</style>
+<style>.form-control{width:100%;border-radius:0.75rem;border:1px solid #e2e8f0;background:#f8fafc;padding:0.7rem 0.9rem;font-size:0.9rem;font-weight:500} .form-control:focus{outline:none;border-color:#2563eb;background:#fff;box-shadow:0 0 0 4px rgba(37,99,235,.1)} .img-thumb{width:100%;aspect-ratio:4/3;object-fit:contain;background:#fff;border:1px solid #e2e8f0;border-radius:0.75rem;padding:2px}</style>
 {% endblock %}
 {% block content %}
 <div class="mx-auto max-w-4xl">
     <a href="{% url 'rer_list' %}" class="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900">← Back to RER</a>
     <div class="mt-4 rounded-[20px] bg-slate-900 p-6 text-white">
-        <p class="inline-flex rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-bold tracking-widest uppercase">MDRRMO • RER + Image</p>
+        <p class="inline-flex rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-bold tracking-widest uppercase">MDRRMO • RER + Multiple Images</p>
         <h1 class="mt-3 text-2xl font-black tracking-tight">{% if object %}Edit RER {{ object.rer_no|default:object.pk }}{% else %}New Reimbursement Expense Receipt{% endif %}</h1>
-        <p class="text-sm text-blue-100/70 mt-1">Prints: <b class="text-white">Image on top + RER form at bottom</b> on one A4. PCV is separate A4 attachment.</p>
+        <p class="text-sm text-blue-100/70 mt-1">Prints: <b class="text-white">Images on top (responsive grid, properly placed) + RER form at bottom</b> on one A4 portrait. Supports multiple images — placed without stretch (object-fit contain). PDF export same layout. PCV is separate A4 attachment.</p>
     </div>
 
     <div class="mt-6 rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-soft">
@@ -17,13 +17,66 @@
             {% csrf_token %}
             {% if form.non_field_errors %}<div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{{ form.non_field_errors }}</div>{% endif %}
 
-            <!-- Image + PCV link -->
+            <!-- Gallery Images + PCV link -->
             <div class="rounded-xl border-2 border-dashed border-blue-200 bg-blue-50/50 p-4">
-                <p class="text-xs font-bold tracking-widest text-blue-800 uppercase">Attachment Image (printed on top of RER)</p>
-                <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div class="space-y-1.5"><label class="text-[11px] font-bold tracking-widest text-slate-500 uppercase">Image File (JPG/PNG)</label>{{ form.attached_image }}{% if form.attached_image.errors %}<p class="text-xs text-red-600">{{ form.attached_image.errors.0 }}</p>{% endif %}{% if object.attached_image %}<p class="text-xs text-slate-500">Current: <a href="{{ object.attached_image.url }}" target="_blank" class="text-blue-600 underline">View</a></p>{% endif %}</div>
-                    <div class="space-y-1.5"><label class="text-[11px] font-bold tracking-widest text-slate-500 uppercase">Link to Petty Cash Voucher (optional)</label>{{ form.petty_cash_voucher }}<p class="text-xs text-slate-400">PCV prints as separate A4 attachment.</p></div>
+                <p class="text-xs font-bold tracking-widest text-blue-800 uppercase">Attachment Images — multiple supported (printed on top of RER in grid)</p>
+                <p class="text-[11px] text-blue-700/70 mt-1">1 image → centered large (88.9mm) • 2 → side-by-side • 3–4 → 2×2 grid • 5+ → 3 columns. All images keep aspect ratio, no stretch, contain inside bordered cell. Print and PDF use same placement.</p>
+
+                {% if gallery_images %}
+                <div class="mt-3">
+                    <p class="text-xs font-bold text-slate-700">Current images ({{ gallery_images|length }}) — check to remove on save</p>
+                    <div class="mt-2 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                        {% for img in gallery_images %}
+                        <label class="group relative rounded-xl border border-slate-200 bg-white p-2 hover:border-slate-300 cursor-pointer">
+                            <img src="{{ img.image.url }}" alt="RER image {{ forloop.counter }}" class="img-thumb">
+                            <p class="mt-1 text-[11px] text-slate-500 truncate">Image {{ forloop.counter }}</p>
+                            <div class="mt-1 flex items-center gap-1.5">
+                                <input type="checkbox" name="delete_image_{{ img.pk }}" id="delete_image_{{ img.pk }}" class="rounded border-slate-300 text-red-600 focus:ring-red-500">
+                                <span class="text-xs font-semibold text-red-600">Delete</span>
+                            </div>
+                        </label>
+                        {% endfor %}
+                    </div>
+                    <p class="text-[11px] text-slate-400 mt-2">Checked images will be permanently removed when you save.</p>
                 </div>
+                {% endif %}
+
+                {% if object and object.attached_image and not gallery_images %}
+                <div class="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 flex gap-3 items-start">
+                    <img src="{{ object.attached_image.url }}" alt="Legacy image" class="h-20 w-28 object-contain bg-white border border-amber-200 rounded-lg">
+                    <div class="flex-1">
+                        <p class="text-xs font-bold text-amber-800">Legacy single image detected</p>
+                        <p class="text-xs text-amber-700/80">This RER still uses the old single-image field. It will appear on print/PDF as fallback. You can keep it, add new multi-images, or clear it below. After migrating, it will be copied to the gallery automatically.</p>
+                        <label class="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-amber-800">
+                            <input type="checkbox" name="clear_legacy_image" class="rounded border-amber-300 text-amber-600"> Clear legacy image
+                        </label>
+                        <p class="text-[11px] text-slate-500 mt-1">Current: <a href="{{ object.attached_image.url }}" target="_blank" class="text-blue-600 underline">View legacy file</a></p>
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="space-y-1.5">
+                        <label class="text-[11px] font-bold tracking-widest text-slate-500 uppercase">Add Images (multiple — JPG/PNG)</label>
+                        {{ form.new_images }}
+                        {% if form.new_images.errors %}<p class="text-xs text-red-600">{{ form.new_images.errors.0 }}</p>{% endif %}
+                        {% if form.new_images.help_text %}<p class="text-[11px] text-slate-500">{{ form.new_images.help_text }}</p>{% endif %}
+                        <div id="new-images-preview" class="mt-2 grid grid-cols-3 gap-2 hidden"></div>
+                        <p class="text-[11px] text-slate-500">Tip: Hold <kbd class="px-1 py-0.5 bg-slate-100 border border-slate-200 rounded text-[10px]">Ctrl</kbd> / <kbd class="px-1 py-0.5 bg-slate-100 border border-slate-200 rounded text-[10px]">Cmd</kbd> to select multiple at once. Images are placed properly with contained scaling — no distortion.</p>
+                    </div>
+                    <div class="space-y-1.5"><label class="text-[11px] font-bold tracking-widest text-slate-500 uppercase">Link to Petty Cash Voucher (optional)</label>{{ form.petty_cash_voucher }}<p class="text-xs text-slate-400">PCV prints as separate A4 attachment. Export PDF for RER also includes gallery + form.</p></div>
+                </div>
+
+                <details class="mt-3 rounded-lg border border-slate-200 bg-white">
+                    <summary class="px-3 py-2 text-xs font-bold tracking-widest text-slate-500 uppercase cursor-pointer">Legacy single image (advanced / compatibility)</summary>
+                    <div class="p-3 space-y-1.5 border-t border-slate-100">
+                        <label class="text-[11px] font-bold tracking-widest text-slate-500 uppercase">Legacy Image File (deprecated — use Add Images above)</label>
+                        {{ form.attached_image }}
+                        {% if form.attached_image.errors %}<p class="text-xs text-red-600">{{ form.attached_image.errors.0 }}</p>{% endif %}
+                        {% if form.attached_image.help_text %}<p class="text-[11px] text-slate-400">{{ form.attached_image.help_text }}</p>{% endif %}
+                        {% if object.attached_image %}<p class="text-xs text-slate-500">Current legacy: <a href="{{ object.attached_image.url }}" target="_blank" class="text-blue-600 underline">View</a></p>{% endif %}
+                    </div>
+                </details>
             </div>
 
             <!-- Header -->
@@ -75,6 +128,33 @@
 
 <script>
 (function() {
+    // Preview for new_images multiple selection
+    const input = document.getElementById('id_new_images');
+    const preview = document.getElementById('new-images-preview');
+    if (input && preview) {
+        input.addEventListener('change', function() {
+            preview.innerHTML = '';
+            const files = input.files;
+            if (!files || files.length === 0) {
+                preview.classList.add('hidden');
+                return;
+            }
+            preview.classList.remove('hidden');
+            Array.from(files).forEach((file, idx) => {
+                if (!file.type.startsWith('image/')) return;
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const div = document.createElement('div');
+                    div.className = 'rounded-lg border border-slate-200 bg-white p-1';
+                    div.innerHTML = '<img src="'+e.target.result+'" class="w-full h-20 object-contain bg-white rounded"><p class="text-[10px] text-slate-500 truncate mt-1">'+file.name+'</p>';
+                    preview.appendChild(div);
+                };
+                reader.readAsDataURL(file);
+            });
+        });
+    }
+
+    // Amount in words auto (unchanged)
     const fig = document.getElementById('id_amount_in_figures');
     const words = document.getElementById('id_amount_in_words');
     if (!fig || !words) return;
@@ -124,14 +204,12 @@
 
     function amountToWords(val) {
         if (!val && val !== 0) return '';
-        // remove commas and spaces
         let s = String(val).replace(/,/g, '').trim();
         if (!s || isNaN(s)) return '';
         let num = parseFloat(s);
         if (isNaN(num)) return '';
         let pesos = Math.floor(Math.abs(num));
         let centavos = Math.round((Math.abs(num) - pesos) * 100);
-        // handle rounding overflow
         if (centavos === 100) { pesos += 1; centavos = 0; }
 
         let w = '';
@@ -143,21 +221,16 @@
                 w += ' and ' + numberToWords(centavos) + (centavos === 1 ? ' Centavo' : ' Centavos');
             }
         } else {
-            // pesos 0 but centavos >0
             w = numberToWords(centavos) + (centavos === 1 ? ' Centavo' : ' Centavos');
         }
-        // Title case already, ensure first letter capital
         return w;
     }
 
     let userEditedWords = false;
-    // If user focuses and types in words field, mark as manually edited
     words.addEventListener('input', function() {
-        // if user clears it, allow auto again on next fig change
         if (words.value.trim() === '') userEditedWords = false;
         else userEditedWords = true;
     });
-    // Double-click to force re-auto
     words.addEventListener('dblclick', function() {
         userEditedWords = false;
         words.value = amountToWords(fig.value);
@@ -177,18 +250,15 @@
 
     fig.addEventListener('input', sync);
     fig.addEventListener('change', sync);
-    // On load, if figures has value and words empty, fill
     document.addEventListener('DOMContentLoaded', function() {
         if (fig.value && !words.value.trim()) {
             words.value = amountToWords(fig.value);
         }
     });
-    // Also trigger once now (in case DOM already loaded)
     if (fig.value && !words.value.trim()) {
         words.value = amountToWords(fig.value);
     }
 
-    // Visual hint
     const hint = document.createElement('p');
     hint.className = 'text-[11px] text-slate-400 mt-1';
     hint.textContent = 'Auto-converts to words • editing words pauses auto (clear to resume, double-click to regenerate)';

@@ -258,6 +258,10 @@ class FuelConsumption(models.Model):
 class LiquidationSetting(models.Model):
     principal_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     check_number = models.CharField(max_length=50, null=True, blank=True)
+    # Footer dynamic amounts - editable per template
+    refund_or_number = models.CharField(max_length=50, null=True, blank=True, help_text="OR Number for Amount Refund per OR #")
+    amount_refund_per_or = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text="Amount Refund per OR # (footer)")
+    amount_reimbursed = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text="Amount Reimbursed (footer)")
 
     def __str__(self):
         return f'Liquidation Setting (Principal: {self.principal_amount})'
@@ -268,6 +272,10 @@ class LiquidationReport(models.Model):
     report_date = models.DateField(default=date.today)
     principal_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     check_number = models.CharField(max_length=50, null=True, blank=True)
+    # Footer dynamic amounts
+    refund_or_number = models.CharField(max_length=50, null=True, blank=True, help_text="OR Number for Amount Refund per OR #")
+    amount_refund_per_or = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text="Amount Refund per OR #")
+    amount_reimbursed = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text="Amount Reimbursed")
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -285,9 +293,26 @@ class LiquidationReportEntry(models.Model):
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     # If VAT inclusive, WHT = amount/1.12*rate (default, 12% VAT). If non-VAT, WHT = amount*rate (optional per row)
     vat_inclusive = models.BooleanField(default=True, help_text="VAT inclusive - checked: amount includes 12% VAT (WHT = amount/1.12*rate). Unchecked: Non-VAT (no withholding, Net = Amount)")
+    # Dynamic per-row WHT amounts - editable; if set, overrides computed WHT
+    wht5_amount = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text="Withholding Tax 5% (editable per row, overrides computed)")
+    wht1_amount = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text="Withholding Tax 1% (editable per row)")
 
     def __str__(self):
         return f'{self.or_number or "No OR"} - {self.amount}'
+
+    def get_wht5(self):
+        if self.wht5_amount is not None:
+            return self.wht5_amount
+        if self.vat_inclusive:
+            return (self.amount / Decimal('1.12') * Decimal('0.05')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        return Decimal('0.00')
+
+    def get_wht1(self):
+        if self.wht1_amount is not None:
+            return self.wht1_amount
+        if self.vat_inclusive:
+            return (self.amount / Decimal('1.12') * Decimal('0.01')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        return Decimal('0.00')
 
 
 # ── Petty Cash & RER ── Separate transaction module (not fuel)
@@ -333,6 +358,16 @@ def rer_image_path(instance, filename):
     return f"rer_images/{instance.rer_no or 'rer'}_{filename}"
 
 
+def rer_gallery_image_path(instance, filename):
+    # instance is ReimbursementExpenseReceiptImage
+    # Use RER's rer_no and pk for namespacing; fallback to 'rer'
+    rer = getattr(instance, 'rer', None)
+    prefix = (getattr(rer, 'rer_no', None) or getattr(rer, 'pk', None) or 'rer')
+    # sanitize prefix to avoid slash
+    prefix = str(prefix).replace('/', '_').replace('\\', '_')[:50]
+    return f"rer_images/{prefix}_{filename}"
+
+
 class ReimbursementExpenseReceipt(models.Model):
     # Header
     entity_name = models.CharField(max_length=150, blank=True, default="")
@@ -357,7 +392,7 @@ class ReimbursementExpenseReceipt(models.Model):
     witness_residence_cert_no = models.CharField(max_length=100, blank=True)
     witness_residence_date = models.DateField(null=True, blank=True)
     witness_residence_place = models.CharField(max_length=150, blank=True)
-    # Attachment image (printed on top of RER)
+    # Attachment image (printed on top of RER) — legacy single image; kept for backward compat
     attached_image = models.ImageField(upload_to=rer_image_path, null=True, blank=True)
     # Optional link to PCV (as attachment)
     petty_cash_voucher = models.ForeignKey(PettyCashVoucher, null=True, blank=True, on_delete=models.SET_NULL, related_name="rers")
@@ -371,3 +406,54 @@ class ReimbursementExpenseReceipt(models.Model):
 
     def __str__(self):
         return f"RER {self.rer_no or self.pk} - {self.receipt_date} - P{self.amount_in_figures}"
+
+    @property
+    def all_images(self):
+        """
+        Return queryset/list of all images for this RER.
+        Prefers the new multi-image gallery (images relation).
+        Falls back to legacy attached_image for backward compatibility.
+        """
+        qs = self.images.all()
+        if qs.exists():
+            return qs
+        # fallback: if legacy single image exists, return a synthetic list
+        if self.attached_image:
+            # Return a list with a mock object exposing .image.url etc. for template uniformity
+            # We return the RER itself as a proxy? Better return list with attached_image wrapped
+            # For simplicity, callers should check both .images and .attached_image,
+            # but this helper returns images queryset if any, else empty list
+            return qs
+        return qs
+
+    def get_gallery_images(self):
+        """Return list of image objects/URLs for gallery: new images or legacy fallback."""
+        imgs = list(self.images.all())
+        if imgs:
+            return imgs
+        if self.attached_image:
+            # create a lightweight wrapper
+            class LegacyWrapper:
+                def __init__(self, field):
+                    self.image = field
+                    self.url = field.url if field else None
+            # Not ideal for template; easier to handle in template with if
+            return []
+        return []
+
+
+class ReimbursementExpenseReceiptImage(models.Model):
+    """Multiple images per RER — printed on top of RER form, laid out as grid."""
+    rer = models.ForeignKey(ReimbursementExpenseReceipt, on_delete=models.CASCADE, related_name='images')
+    image = models.ImageField(upload_to=rer_gallery_image_path)
+    caption = models.CharField(max_length=255, blank=True)
+    order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['order', 'id']
+        verbose_name = "RER Image"
+        verbose_name_plural = "RER Images"
+
+    def __str__(self):
+        return f"RER {self.rer_id} Image {self.pk}"

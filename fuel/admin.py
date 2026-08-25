@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Driver, FuelConsumption, Vehicle, LiquidationSetting, LiquidationReport, LiquidationReportEntry, PettyCashVoucher, ReimbursementExpenseReceipt
+from .models import Driver, FuelConsumption, Vehicle, LiquidationSetting, LiquidationReport, LiquidationReportEntry, PettyCashVoucher, ReimbursementExpenseReceipt, ReimbursementExpenseReceiptImage
 from django.utils.html import format_html
 
 class DriverAdmin(admin.ModelAdmin):
@@ -86,16 +86,68 @@ class PettyCashVoucherAdmin(admin.ModelAdmin):
     search_fields = ('voucher_no', 'payee_office', 'particulars')
     date_hierarchy = 'voucher_date'
 
+class ReimbursementExpenseReceiptImageInline(admin.TabularInline):
+    model = ReimbursementExpenseReceiptImage
+    extra = 0
+    readonly_fields = ('image_preview',)
+    fields = ('image', 'image_preview', 'caption', 'order')
+
+    def image_preview(self, obj):
+        if obj.image:
+            return format_html('<img src="{}" style="max-height:90px; border:1px solid #e2e8f0; background:white; padding:2px;" />', obj.image.url)
+        return "No image"
+    image_preview.short_description = "Preview (contain, not stretched)"
+
+
 @admin.register(ReimbursementExpenseReceipt)
 class ReimbursementExpenseReceiptAdmin(admin.ModelAdmin):
-    list_display = ('rer_no', 'receipt_date', 'received_from_name', 'amount_in_figures', 'petty_cash_voucher', 'created_at')
+    list_display = ('rer_no', 'receipt_date', 'received_from_name', 'amount_in_figures', 'images_count', 'petty_cash_voucher', 'created_at')
     list_filter = ('receipt_date',)
     search_fields = ('rer_no', 'received_from_name', 'entity_name')
     date_hierarchy = 'receipt_date'
-    readonly_fields = ('attached_image_preview',)
+    readonly_fields = ('attached_image_preview', 'gallery_preview')
+    inlines = [ReimbursementExpenseReceiptImageInline]
+
+    def images_count(self, obj):
+        cnt = obj.images.count()
+        if cnt:
+            return f"{cnt} image(s)"
+        if obj.attached_image:
+            return "1 legacy"
+        return "—"
+    images_count.short_description = "Images"
 
     def attached_image_preview(self, obj):
         if obj.attached_image:
             return format_html('<img src="{}" style="max-height:120px; border:1px solid #e2e8f0;" />', obj.attached_image.url)
+        return "No legacy image"
+    attached_image_preview.short_description = "Legacy image preview"
+
+    def gallery_preview(self, obj):
+        imgs = obj.images.all()
+        if not imgs:
+            return "No gallery images (will fallback to legacy if present)"
+        html = '<div style="display:flex; flex-wrap:wrap; gap:6px;">'
+        for im in imgs:
+            try:
+                url = im.image.url
+                html += f'<img src="{url}" style="height:70px; width:90px; object-fit:contain; border:1px solid #000; background:white; padding:2px;" />'
+            except Exception:
+                html += '<span style="color:#999;">Missing</span>'
+        html += '</div><p style="font-size:11px; color:#64748b; margin-top:4px;">Grid: 1→centered • 2→side-by-side • 3–4→2×2 • 5+→3 cols — all contain, no stretch</p>'
+        return format_html(html)
+    gallery_preview.short_description = "Gallery preview (multiple, properly placed)"
+
+
+@admin.register(ReimbursementExpenseReceiptImage)
+class ReimbursementExpenseReceiptImageAdmin(admin.ModelAdmin):
+    list_display = ('id', 'rer', 'image_preview', 'caption', 'order', 'created_at')
+    list_filter = ('rer',)
+    search_fields = ('rer__rer_no', 'caption')
+    readonly_fields = ('image_preview',)
+
+    def image_preview(self, obj):
+        if obj.image:
+            return format_html('<img src="{}" style="max-height:110px; border:1px solid #000; object-fit:contain; background:white; padding:2px;" />', obj.image.url)
         return "No image"
-    attached_image_preview.short_description = "Image preview"
+    image_preview.short_description = "Preview (contain)"

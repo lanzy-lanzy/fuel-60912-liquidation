@@ -47,4 +47,5 @@ urlpatterns = [
     path('rer/<int:pk>/edit/', views.RERUpdateView.as_view(), name='rer_edit'),
     path('rer/<int:pk>/delete/', views.RERDeleteView.as_view(), name='rer_delete'),
     path('rer/<int:pk>/print/', views.rer_print_view, name='rer_print'),
+    path('rer/<int:pk>/export-pdf/', views.export_rer_pdf, name='rer_export_pdf'),
 ]

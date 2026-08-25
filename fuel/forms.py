@@ -1,6 +1,24 @@
 from django import forms
 from .models import FuelConsumption, Driver, PettyCashVoucher, ReimbursementExpenseReceipt
 
+
+class MultipleFileInput(forms.ClearableFileInput):
+    allow_multiple_selected = True
+
+
+class MultipleFileField(forms.FileField):
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault("widget", MultipleFileInput(attrs={'multiple': True, 'accept': 'image/*', 'class': 'form-control'}))
+        super().__init__(*args, **kwargs)
+
+    def clean(self, data, initial=None):
+        single_file_clean = super().clean
+        if isinstance(data, (list, tuple)):
+            result = [single_file_clean(d, initial) for d in data]
+        else:
+            result = single_file_clean(data, initial)
+        return result
+
 class FuelConsumptionForm(forms.ModelForm):
     VEHICLE_CHOICES = [
         ('Ambulance L300', 'Ambulance L300'),
@@ -130,6 +148,13 @@ class PettyCashVoucherForm(forms.ModelForm):
 
 
 class ReimbursementExpenseReceiptForm(forms.ModelForm):
+    # Multi-image upload (handled in view via request.FILES.getlist — also via field clean for validation)
+    new_images = MultipleFileField(
+        required=False,
+        label="Add Images (multiple)",
+        help_text="Select one or more JPG/PNG images. They will be laid out in a responsive grid on print and PDF with proper scaling (object-fit contain)."
+    )
+
     class Meta:
         model = ReimbursementExpenseReceipt
         fields = [
@@ -160,3 +185,11 @@ class ReimbursementExpenseReceiptForm(forms.ModelForm):
         self.fields['petty_cash_voucher'].widget.attrs.update({'class': 'form-control'})
         self.fields['petty_cash_voucher'].required = False
         self.fields['attached_image'].widget.attrs.update({'class': 'form-control', 'accept': 'image/*'})
+        # Help legacy field: optional
+        self.fields['attached_image'].required = False
+        self.fields['attached_image'].help_text = "Legacy single image (kept for compatibility). Use 'Add Images' for multiple."
+
+    def clean_new_images(self):
+        # Allow multiple files; view will use request.FILES.getlist so we just return the single value
+        # Accept empty
+        return self.cleaned_data.get('new_images')

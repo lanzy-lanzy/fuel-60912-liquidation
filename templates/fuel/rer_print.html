@@ -9,9 +9,10 @@
     @page { size: A4 portrait; margin: 6mm; }
     * { box-sizing: border-box; }
     body { margin:0; padding:0; background:#fff; font-family: Arial, Helvetica, sans-serif; color:#000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    .no-print { max-width: 210mm; margin: 10px auto; display:flex; justify-content:flex-end; gap:8px; }
+    .no-print { max-width: 210mm; margin: 10px auto; display:flex; justify-content:flex-end; gap:8px; flex-wrap:wrap; }
     .no-print a, .no-print button { font-family: Inter, sans-serif; font-size:13px; padding:8px 14px; border-radius:8px; text-decoration:none; cursor:pointer; }
     .btn-print{ background:#0f172a; color:#fff; border:1px solid #0f172a; }
+    .btn-pdf{ background:#059669; color:#fff; border:1px solid #059669; }
     .btn-back{ background:#fff; color:#0f172a; border:1px solid #e2e8f0; }
     @media print { .no-print{display:none !important} .sheet{border:none !important; box-shadow:none !important} }
 
@@ -22,39 +23,91 @@
         display:flex;
         flex-direction:column;
         align-items:center;
-        gap: 6mm;
-        padding-top: 4mm;
+        gap: 5mm;
+        padding-top: 2mm;
     }
-    /* Image on top — 3.5x5 NOT stretched, centered, natural size */
-    .img-wrap {
-        width: auto;
-        max-width: 88.9mm; /* 3.5" */
-        max-height: 66mm;
-        border: 1pt solid #000;
+
+    /* Gallery — multiple images properly placed */
+    .gallery {
+        width: 170mm; /* A4 usable width minus margins */
+        max-width: 170mm;
+        display:flex;
+        flex-wrap:wrap;
+        gap: 2.8mm;
+        justify-content:center;
+        align-items:center;
+        align-content:center;
+    }
+    .gallery-item {
+        flex: 0 1 82mm;
+        width: 82mm;
+        max-width: 82mm;
+        height: 58mm;
+        max-height: 62mm;
+        border: 0.8pt solid #000;
+        background:#fff;
         display:flex;
         align-items:center;
         justify-content:center;
         overflow:hidden;
-        background:#fff;
-        padding: 0;
-        box-shadow: none;
+        padding: 1pt;
     }
-    .img-wrap img {
-        max-width: 88.9mm;
-        max-height: 66mm;
+    .gallery-item img {
+        max-width: 100%;
+        max-height: 100%;
         width:auto !important;
         height:auto !important;
         object-fit: contain;
         display:block;
     }
-    .img-placeholder {
-        width:100%; height:100%;
-        display:flex; align-items:center; justify-content:center;
-        color:#94a3b8; font-size:9pt; text-align:center;
-        background: repeating-linear-gradient(45deg, #f8fafc, #f8fafc 6px, #f1f5f9 6px, #f1f5f9 12px);
+    /* Single image — centered larger like original 3.5x5 */
+    .gallery.count-1 { width: auto; max-width: 88.9mm; justify-content:center; }
+    .gallery.count-1 .gallery-item {
+        flex: 0 0 88.9mm;
+        width: 88.9mm;
+        max-width: 88.9mm;
+        height: auto;
+        max-height: 84mm;
+        min-height: 52mm;
+    }
+    .gallery.count-1 .gallery-item img {
+        max-width: 88.9mm;
+        max-height: 84mm;
+    }
+    /* 3+ with 2 cols keeps same item size; 5+ will auto wrap to 3 cols if narrow */
+    /* For 5+ items we shrink to 3 columns: via media query or count class */
+    .gallery.count-5, .gallery.count-6, .gallery.count-7, .gallery.count-8, .gallery.count-9, .gallery.count-10 {
+        gap: 2.2mm;
+    }
+    .gallery.count-5 .gallery-item,
+    .gallery.count-6 .gallery-item,
+    .gallery.count-7 .gallery-item,
+    .gallery.count-8 .gallery-item,
+    .gallery.count-9 .gallery-item,
+    .gallery.count-10 .gallery-item {
+        flex: 0 1 54mm;
+        width: 54mm;
+        max-width: 54.5mm;
+        height: 48mm;
+        max-height: 50mm;
     }
 
-    /* RER form — 3.5" width (88.9mm) index, centered, compact, no blank */
+    .gallery-placeholder {
+        width: 88.9mm;
+        height: 42mm;
+        display:flex; align-items:center; justify-content:center;
+        color:#94a3b8; font-size:8pt; text-align:center;
+        background: repeating-linear-gradient(45deg, #f8fafc, #f8fafc 6px, #f1f5f9 6px, #f1f5f9 12px);
+        border: 0.8pt solid #cbd5e1;
+        padding: 4mm;
+    }
+    @media print {
+        .sheet{ background:transparent !important; }
+        .gallery-item{ box-shadow:none !important; border:0.8pt solid #000 !important; -webkit-print-color-adjust: exact; }
+        .rer{ box-shadow:none !important; }
+    }
+
+    /* RER form — 3.5" width (88.9mm) index, centered */
     .rer {
         width: 88.9mm; /* 3.5" */
         height: auto;
@@ -64,11 +117,8 @@
         box-shadow: none;
         display:block;
         overflow:hidden;
-    }
-    @media print {
-        .sheet{ background:transparent !important; }
-        .img-wrap{ box-shadow:none !important; border:0.8pt solid #000 !important; }
-        .rer{ box-shadow:none !important; }
+        break-inside: avoid;
+        page-break-inside: avoid;
     }
     .rer-title {
         text-align:center;
@@ -99,7 +149,6 @@
         display:flex;
         flex-direction:column;
     }
-    .rer-body .line { border-bottom:0.7pt solid #000; width:100%; height:7pt; margin:1pt 0; }
     .rer-body .small-ital { font-size:5.5pt; color:#334155; font-style:italic; text-align:center; margin:0 0 2pt; }
     .payee-witness {
         border-top:1pt solid #000;
@@ -116,39 +165,50 @@
         border-bottom:1pt double #000;
         background:#f8fafc;
     }
-    .pw-grid {
-        display:block;
-        font-size:6.3pt;
-    }
+    .pw-grid { display:block; font-size:6.3pt; }
     .pw-grid > div { padding: 2pt 4pt; }
     .pw-line { display:flex; gap:3pt; margin:1.2pt 0; }
     .pw-line span:first-child { white-space:nowrap; font-weight:600; font-size:6pt; }
     .pw-line .ul { flex:1; min-width:0; }
-    .sig-sep { border-top:0.7pt solid #000; margin-top:4pt; padding-top:4pt; }
+    /* caption under gallery */
+    .gallery-caption { font-size:6pt; color:#64748b; text-align:center; margin:0; }
 </style>
 </head>
 <body>
 <div class="no-print">
     <button onclick="window.print()" class="btn-print">Print</button>
+    <a href="{% url 'rer_export_pdf' receipt.pk %}" target="_blank" class="btn-pdf">Export PDF (with images)</a>
     <a href="{% url 'rer_detail' receipt.pk %}" class="btn-back">Back</a>
     {% if receipt.petty_cash_voucher %}<a href="{% url 'pcv_print' receipt.petty_cash_voucher.pk %}" target="_blank" class="btn-back">Print PCV (separate A4)</a>{% endif %}
 </div>
 
 <div class="sheet">
-    <!-- Image on top -->
-    <div class="img-wrap">
-        {% if receipt.attached_image %}
-            <img src="{{ receipt.attached_image.url }}" alt="RER Attachment">
-        {% else %}
-            <div class="img-placeholder">
-                <div>
-                    <p style="font-weight:700; color:#334155;">No image attached</p>
-                    <p>Upload an image when creating/editing the RER — it will appear here on top when printed.</p>
-                    <p style="margin-top:6pt; font-size:7pt; color:#64748b;">Recommended: JPG/PNG, clear photo of receipt/OR</p>
-                </div>
+    <!-- Gallery on top — multiple images properly placed -->
+    {% if gallery_images %}
+        <div class="gallery count-{{ gallery_count }}">
+            {% for g in gallery_images %}
+            <div class="gallery-item">
+                <img src="{{ g.image.url }}" alt="RER image {{ forloop.counter }}">
             </div>
-        {% endif %}
-    </div>
+            {% endfor %}
+        </div>
+        <p class="gallery-caption">{{ gallery_count }} image{{ gallery_count|pluralize }} • properly placed with object-fit contain (no distortion) • grid: 1→centered • 2→side-by-side • 3–4→2×2 • 5+→3 columns</p>
+    {% elif has_legacy_image %}
+        <div class="gallery count-1">
+            <div class="gallery-item">
+                <img src="{{ receipt.attached_image.url }}" alt="RER Attachment (legacy)">
+            </div>
+        </div>
+        <p class="gallery-caption">1 legacy image — properly placed (contain, not stretched)</p>
+    {% else %}
+        <div class="gallery-placeholder">
+            <div>
+                <p style="font-weight:700; color:#334155;">No image attached</p>
+                <p>Upload one or more images when creating/editing the RER — they will appear here on top in a proper grid when printed. Each image keeps its aspect ratio (no stretch).</p>
+                <p style="margin-top:6pt; font-size:7pt; color:#64748b;">Supports multiple: 1 centered → 2 side-by-side → 3–4 in 2×2 → 5+ in 3 columns • Recommended: JPG/PNG clear photo</p>
+            </div>
+        </div>
+    {% endif %}
 
     <!-- RER at bottom -->
     <div class="rer">
@@ -167,7 +227,6 @@
         <div class="rer-body">
             <p style="text-align:center; font-weight:600; margin:2pt 0 6pt;">RECEIVED from <span class="ul wide">{{ receipt.received_from_name|default:"" }}</span> <span style="font-size:6.5pt;">(Name)</span> <span class="ul">{{ receipt.received_from_designation|default:"" }}</span> <span style="font-size:6.5pt;">(Official Designation)</span> the amount of</p>
             <p><span class="ul full">{{ receipt.amount_in_words|default:"" }}</span> <span style="font-size:6.5pt;">(In Words)</span> <span class="ul" style="min-width:22mm; text-align:right;">P {{ receipt.amount_in_figures|floatformat:2|intcomma }}</span> <span style="font-size:6.5pt;">(In Figures)</span></p>
-            <!-- duplicate line as in form (in Words / In Figures / of ...) -->
             <p style="margin-top:2pt;">of <span class="ul full" style="min-width: 80mm; font-size:6.5pt; color:#1e3a8a;">{{ receipt.amount_in_words|default:"" }}</span> <span style="font-size:6.5pt;">(In Words)</span></p>
             <p style="margin-top:4pt;">in payment for <span class="ul full" style="min-width: 130mm;">{{ receipt.in_payment_for|default:"" }}</span></p>
             <p class="small-ital">(Payments for subsistence, services, etc.)</p>
@@ -177,7 +236,7 @@
             <p class="small-ital">purpose, distance, inclusive points of travel, etc.)</p>
             <div style="border-bottom:0.7pt solid #000; margin:3pt 0; height:6pt;"></div>
 
-            <!-- PAYEE — single column, no blank right half -->
+            <!-- PAYEE -->
             <div class="payee-witness">
                 <div class="pw-head">Payee</div>
                 <div class="pw-grid">
@@ -192,7 +251,7 @@
                 </div>
             </div>
 
-            <!-- WITNESS — single column, no blank -->
+            <!-- WITNESS -->
             <div class="payee-witness" style="border-top:1pt solid #000;">
                 <div class="pw-head">Witness</div>
                 <div class="pw-grid">
@@ -210,8 +269,9 @@
     </div>
 
     {% if receipt.petty_cash_voucher %}
-    <p style="text-align:center; font-size:7pt; color:#475569; margin-top:4mm;">— Attached to PCV No. {{ receipt.petty_cash_voucher.voucher_no|default:receipt.petty_cash_voucher.pk }} (separate A4 print via PCV Print) —</p>
+    <p style="text-align:center; font-size:7pt; color:#475569; margin-top:2mm;">— Attached to PCV No. {{ receipt.petty_cash_voucher.voucher_no|default:receipt.petty_cash_voucher.pk }} (separate A4 print via PCV Print) —</p>
     {% endif %}
+    <p style="text-align:center; font-size:6pt; color:#94a3b8;">Images are placed with object-fit: contain, no distortion, bordered cells centered on A4. PDF export preserves same grid.</p>
 </div>
 
 <script>if(window.location.search.includes('autoprint')) window.print();</script>

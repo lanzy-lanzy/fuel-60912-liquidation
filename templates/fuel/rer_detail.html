@@ -6,18 +6,36 @@
     <a href="{% url 'rer_list' %}" class="text-sm font-medium text-slate-600 hover:text-slate-900">← Back to RER list</a>
     <div class="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft">
         <div class="bg-slate-900 px-6 py-5 text-white">
-            <p class="text-[11px] font-bold tracking-widest text-blue-200 uppercase">Reimbursement Expense Receipt</p>
+            <p class="text-[11px] font-bold tracking-widest text-blue-200 uppercase">Reimbursement Expense Receipt • {{ gallery_images|length }} image{{ gallery_images|length|pluralize }}</p>
             <h1 class="text-xl font-black">RER {{ receipt.rer_no|default:"—" }} • {{ receipt.receipt_date|date:"M d, Y" }}</h1>
-            <p class="text-sm text-blue-100/70">{{ receipt.received_from_name|default:"—" }} — ₱{{ receipt.amount_in_figures|floatformat:2|intcomma }}</p>
+            <p class="text-sm text-blue-100/70">{{ receipt.received_from_name|default:"—" }} — ₱{{ receipt.amount_in_figures|floatformat:2|intcomma }} {% if gallery_images %}• {{ gallery_images|length }} image{{ gallery_images|length|pluralize }} will print in grid{% elif has_legacy_image %}• 1 legacy image{% endif %}</p>
         </div>
         <div class="p-6">
-            {% if receipt.attached_image %}
+            {% if gallery_images %}
             <div class="rounded-xl border border-slate-200 overflow-hidden mb-6">
-                <p class="bg-slate-50 px-3 py-2 text-xs font-bold tracking-widest text-slate-500 uppercase">Attached Image (printed on top)</p>
-                <img src="{{ receipt.attached_image.url }}" alt="RER attachment" class="w-full max-h-[320px] object-contain bg-white">
+                <p class="bg-slate-50 px-3 py-2 text-xs font-bold tracking-widest text-slate-500 uppercase">Attached Images — {{ gallery_images|length }} image{{ gallery_images|length|pluralize }} (will print in responsive grid, properly placed)</p>
+                <div class="p-3 bg-white">
+                    <div class="grid {% if gallery_images|length == 1 %}grid-cols-1 max-w-md mx-auto{% elif gallery_images|length == 2 %}grid-cols-2{% elif gallery_images|length <= 4 %}grid-cols-2{% else %}grid-cols-3{% endif %} gap-3">
+                        {% for img in gallery_images %}
+                        <div class="rounded-lg border border-slate-200 overflow-hidden bg-white flex flex-col">
+                            <img src="{{ img.image.url }}" alt="RER image {{ forloop.counter }}" class="w-full h-40 object-contain bg-white p-1">
+                            <p class="text-center text-[11px] text-slate-400 py-1 border-t border-slate-100">Image {{ forloop.counter }}</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <p class="text-[11px] text-slate-400 mt-2 text-center">Layout on print/PDF: 1→centered large • 2→side-by-side • 3–4→2×2 • 5+→3 columns — all with object-fit contain (no distortion).</p>
+                </div>
+            </div>
+            {% elif has_legacy_image %}
+            <div class="rounded-xl border border-amber-200 overflow-hidden mb-6">
+                <p class="bg-amber-50 px-3 py-2 text-xs font-bold tracking-widest text-amber-800 uppercase">Legacy Attached Image (printed on top)</p>
+                <img src="{{ receipt.attached_image.url }}" alt="RER legacy attachment" class="w-full max-h-[320px] object-contain bg-white">
+                <p class="px-3 py-2 text-xs text-amber-700 bg-amber-50/50">This uses the old single-image field. Edit to add multiple images in a proper grid for print/PDF.</p>
             </div>
             {% else %}
-            <div class="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-500 mb-6">No image attached — upload one to print on top of RER.</div>
+            <div class="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-500 mb-6">No images attached — upload one or more to print on top of RER in a proper grid. Each image will be contained correctly without stretch.
+                <div class="mt-2"><a href="{% url 'rer_edit' receipt.pk %}" class="text-blue-600 underline font-semibold">Add images</a></div>
+            </div>
             {% endif %}
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                 <div><b>Payee:</b> {{ receipt.payee_signature_name|default:"—" }}</div>
@@ -26,8 +44,9 @@
             </div>
         </div>
         <div class="border-t border-slate-100 bg-slate-50/50 px-6 py-3 flex flex-wrap justify-end gap-2">
-            <a href="{% url 'rer_edit' receipt.pk %}" class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Edit</a>
-            <a href="{% url 'rer_print' receipt.pk %}" target="_blank" class="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white">Print (Image+RER)</a>
+            <a href="{% url 'rer_edit' receipt.pk %}" class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Edit &amp; Manage Images</a>
+            <a href="{% url 'rer_print' receipt.pk %}" target="_blank" class="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white">Print (Images+RER)</a>
+            <a href="{% url 'rer_export_pdf' receipt.pk %}" target="_blank" class="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white">Export PDF (Images+RER)</a>
             {% if receipt.petty_cash_voucher %}<a href="{% url 'pcv_print' receipt.petty_cash_voucher.pk %}" target="_blank" class="rounded-xl bg-white border border-slate-200 px-4 py-2 text-sm font-semibold">Print PCV</a>{% endif %}
             <a href="{% url 'rer_delete' receipt.pk %}" class="rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-700">Delete</a>
         </div>

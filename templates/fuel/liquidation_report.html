@@ -3,10 +3,30 @@
 {% block extra_head %}
 <style>
     @page{size:letter;margin:0.8cm}
+    /* Larger base fonts for elder readability - screen */
+    .liq-sheet{ font-family: Inter, ui-sans-serif, system-ui; }
+    .liq-sheet table{ font-size: 0.95rem; border-collapse: collapse; }
+    .liq-sheet thead th{ font-size: 0.85rem; white-space: nowrap; }
+    .liq-sheet tbody td{ font-size: 0.92rem; }
+    /* Prevent amount wrapping - tabular nums, no break */
+    .liq-sheet .font-mono{ font-variant-numeric: tabular-nums; white-space: nowrap !important; word-break: keep-all !important; overflow-wrap: normal !important; }
+    .liq-sheet .amount-cell{ white-space: nowrap !important; word-break: keep-all !important; }
+    .liq-sheet .flex.justify-between > span:last-child,
+    .liq-sheet .flex.justify-between > span.font-mono{ white-space: nowrap !important; flex-shrink: 0 !important; word-break: keep-all !important; }
+    .liq-sheet .flex.justify-between{ gap: 12px; }
     @media print{
         .no-print{display:none!important}
-        .liq-sheet{box-shadow:none!important;border-radius:0!important;border:none!important}
-        .or-input{border:none!important;background:transparent!important;padding:0!important}
+        .liq-sheet{box-shadow:none!important;border-radius:0!important;border:none!important; font-size: 13pt !important; max-width: none !important;}
+        .liq-sheet .overflow-x-auto{ overflow: visible !important; }
+        .liq-sheet table{ font-size: 11.5pt !important; table-layout: fixed !important; width: 100% !important; }
+        .liq-sheet thead th{ font-size: 10.5pt !important; padding: 7pt 5pt !important; white-space: nowrap !important; }
+        .liq-sheet tbody td{ font-size: 11pt !important; padding: 6pt 4pt !important; white-space: nowrap !important; word-break: keep-all !important; }
+        .liq-sheet tfoot td{ font-size: 11.5pt !important; font-weight: 800 !important; white-space: nowrap !important; }
+        /* Ensure amount columns never wrap */
+        .liq-sheet .wht5-cell, .liq-sheet .wht1-cell, .liq-sheet .net-cell, .liq-sheet .amount-cell, .liq-sheet #tfoot-total, .liq-sheet #tfoot-wht5, .liq-sheet #tfoot-wht1, .liq-sheet #tfoot-net, .liq-sheet #tfoot-wht-total, .liq-sheet #tfoot-unutilized,
+        .liq-sheet #summary-total, .liq-sheet #summary-wht5, .liq-sheet #summary-wht1, .liq-sheet #summary-net, .liq-sheet #summary-wht-total, .liq-sheet #summary-unutilized, .liq-sheet #summary-unutilized-net { white-space: nowrap !important; word-break: keep-all !important; }
+        .or-input{border:none!important;background:transparent!important;padding:0!important; font-size: 11pt !important;}
+        .amount-input{font-size: 11pt !important;}
         /* Print-friendly: no solid dark backgrounds - white header with black text/borders saves ink */
         .liq-sheet thead th,
         .liq-sheet thead td,
@@ -15,7 +35,8 @@
         .liq-sheet .bg-slate-50,
         .liq-sheet .bg-amber-50\/60,
         .liq-sheet .bg-emerald-50,
-        .liq-sheet .bg-emerald-50\/40 {
+        .liq-sheet .bg-emerald-50\/40,
+        .liq-sheet .bg-white {
             background:#fff !important;
             color:#0f172a !important;
             -webkit-print-color-adjust:exact;
@@ -26,6 +47,11 @@
         .liq-sheet thead{border:1pt solid #000 !important;}
         .liq-sheet .bg-slate-900{border:1pt solid #000 !important;}
         .liq-sheet .bg-slate-50\/30{border:1pt dashed #94a3b8 !important;}
+        /* Make amounts bold and larger on print for elders */
+        .liq-sheet .font-mono{ font-size: 11.5pt !important; font-weight: 700 !important;}
+        .liq-sheet h1{ font-size: 18pt !important; }
+        .liq-sheet h2{ font-size: 13pt !important; }
+        .liq-sheet .text-lg{ font-size: 14pt !important; }
     }
     .liq-sheet{ font-family: Inter, ui-sans-serif, system-ui; }
 </style>
@@ -61,17 +87,28 @@
             </div>
 
             {% if readonly %}<div>{% else %}<form method="post">{% csrf_token %}{% endif %}
-            <div class="mt-6 grid grid-cols-1 sm:grid-cols-[1fr_160px] gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <div class="mt-6 grid grid-cols-1 sm:grid-cols-[1fr_180px] gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <p class="text-sm leading-6 text-slate-700">Liquidation of Cash Advance for the Diesel expenses incurred during Patient and Emergency Transportation.</p>
-                <div class="text-right">
+                <div class="text-right min-w-0">
                     <p class="text-[11px] font-bold tracking-widest text-slate-400 uppercase border-b border-slate-900 pb-1">Amount</p>
-                    {% if readonly %}<p class="mt-2 text-lg font-black">₱{{ principal }}</p>{% else %}<input type="text" name="principal" value="{{ principal }}" placeholder="0.00" class="or-input mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-right font-mono text-sm font-bold">{% endif %}
+                    {% if readonly %}<p class="mt-2 text-lg font-black whitespace-nowrap">₱{{ principal }}</p>{% else %}<input type="text" name="principal" value="{{ principal }}" placeholder="0.00" class="or-input mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-right font-mono text-sm font-bold whitespace-nowrap">{% endif %}
                 </div>
             </div>
 
             <h2 class="mt-6 text-center text-xs font-black tracking-[0.18em] text-slate-900 uppercase">Particulars</h2>
             <div class="mt-3 overflow-x-auto rounded-xl border border-slate-200">
-                <table class="w-full text-sm min-w-[860px]">
+                <table class="w-full text-sm min-w-[960px]">
+                    <colgroup>
+                        <col style="width: 92px">
+                        <col style="width: 148px">
+                        <col style="width: 78px">
+                        <col style="width: 128px">
+                        <col style="width: 92px">
+                        <col style="width: 102px">
+                        <col style="width: 102px">
+                        <col style="width: 128px">
+                        <col style="width: 48px">
+                    </colgroup>
                     <thead class="bg-slate-900 text-white text-xs tracking-wide uppercase">
                         <tr>
                             <th rowspan="2" class="px-2 py-2.5 text-center font-semibold align-middle border-r border-slate-700">Date</th>
@@ -91,14 +128,14 @@
                     <tbody class="divide-y divide-slate-100 bg-white">
                         {% for r in rows %}
                         <tr class="hover:bg-slate-50">
-                            <td class="px-2 py-2 text-center font-mono text-xs">{{ r.date|date:"m/d/Y" }}</td>
-                            <td class="px-2 py-2 text-center">{% if readonly %}<span class="font-mono text-xs font-semibold">{{ r.or_number }}</span>{% else %}<input type="text" name="or_{{ r.id }}" value="{{ r.or_number }}" placeholder="OR NO" class="or-input w-full rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-center font-mono text-xs focus:border-blue-500 focus:bg-white outline-none">{% endif %}</td>
-                            <td class="px-2 py-2 text-center"><span class="rounded-full bg-blue-50 border border-blue-200 px-2 py-1 text-xs font-semibold text-blue-700">{{ r.fuel_type }}</span></td>
-                            <td class="px-2 py-2 text-right font-mono text-xs font-semibold">{% if readonly %}₱{{ r.amount }}{% else %}<div class="flex items-center justify-end gap-1"><span class="text-slate-400">₱</span><input type="text" name="amount_{{ r.id }}" value="{{ r.amount }}" placeholder="0.00" class="amount-input w-24 sm:w-28 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-right font-mono text-xs font-bold focus:border-blue-500 focus:bg-white outline-none"></div>{% endif %}</td>
-                            <td class="px-2 py-2 text-center">{% if readonly %}{% if r.vat_inclusive %}<span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-bold text-emerald-700">VAT</span>{% else %}<span class="inline-flex items-center gap-1 rounded-full bg-slate-100 border border-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-600">Non-VAT</span>{% endif %}{% else %}<label class="inline-flex items-center gap-1 cursor-pointer"><input type="checkbox" name="vat_{{ r.id }}" {% if r.vat_inclusive %}checked{% endif %} class="vat-input h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"><span class="text-[10px] font-bold {% if r.vat_inclusive %}text-emerald-700{% else %}text-slate-500{% endif %} vat-label">VAT</span></label>{% endif %}</td>
-                            <td class="px-2 py-2 text-right font-mono text-xs font-semibold text-amber-700 wht5-cell">₱{{ r.wht5 }}</td>
-                            <td class="px-2 py-2 text-right font-mono text-xs font-semibold text-amber-700 wht1-cell">₱{{ r.wht1 }}</td>
-                            <td class="px-2 py-2 text-right font-mono text-xs font-bold text-emerald-700 bg-emerald-50/40 net-cell">₱{{ r.net }}</td>
+                            <td class="px-2 py-2.5 text-center font-mono text-sm font-semibold">{{ r.date|date:"m/d/Y" }}</td>
+                            <td class="px-2 py-2.5 text-center">{% if readonly %}<span class="font-mono text-sm font-semibold">{{ r.or_number }}</span>{% else %}<input type="text" name="or_{{ r.id }}" value="{{ r.or_number }}" placeholder="OR NO" class="or-input w-full rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 text-center font-mono text-sm focus:border-blue-500 focus:bg-white outline-none">{% endif %}</td>
+                            <td class="px-2 py-2.5 text-center"><span class="rounded-full bg-blue-50 border border-blue-200 px-2 py-1 text-sm font-semibold text-blue-700">{{ r.fuel_type }}</span></td>
+                            <td class="px-2 py-2.5 text-right font-mono text-sm font-bold">{% if readonly %}₱{{ r.amount }}{% else %}<div class="flex items-center justify-end gap-1"><span class="text-slate-400">₱</span><input type="text" name="amount_{{ r.id }}" value="{{ r.amount }}" placeholder="0.00" class="amount-input w-24 sm:w-28 rounded-lg border border-slate-200 bg-white px-2 py-2 text-right font-mono text-sm font-bold focus:border-blue-500 focus:bg-white outline-none"></div>{% endif %}</td>
+                            <td class="px-2 py-2.5 text-center">{% if readonly %}{% if r.vat_inclusive %}<span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2 py-1 text-xs font-bold text-emerald-700">VAT</span>{% else %}<span class="inline-flex items-center gap-1 rounded-full bg-slate-100 border border-slate-200 px-2 py-1 text-xs font-bold text-slate-600">Non-VAT</span>{% endif %}{% else %}<label class="inline-flex items-center gap-1 cursor-pointer"><input type="checkbox" name="vat_{{ r.id }}" {% if r.vat_inclusive %}checked{% endif %} class="vat-input h-5 w-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"><span class="text-xs font-bold {% if r.vat_inclusive %}text-emerald-700{% else %}text-slate-500{% endif %} vat-label">VAT</span></label>{% endif %}</td>
+                            <td class="px-2 py-2.5 text-right font-mono text-sm font-bold text-amber-700 wht5-cell">{% if readonly %}₱{{ r.wht5 }}{% else %}<div class="flex items-center justify-end gap-1"><span class="text-slate-400">₱</span><input type="text" name="wht5_{{ r.id }}" value="{{ r.wht5 }}" placeholder="0.00" class="wht5-input w-20 rounded-lg border border-amber-200 bg-amber-50/30 px-2 py-1 text-right font-mono text-xs font-bold focus:border-amber-400 focus:bg-white outline-none"></div>{% endif %}</td>
+                            <td class="px-2 py-2.5 text-right font-mono text-sm font-bold text-amber-700 wht1-cell">{% if readonly %}₱{{ r.wht1 }}{% else %}<div class="flex items-center justify-end gap-1"><span class="text-slate-400">₱</span><input type="text" name="wht1_{{ r.id }}" value="{{ r.wht1 }}" placeholder="0.00" class="wht1-input w-20 rounded-lg border border-amber-200 bg-amber-50/30 px-2 py-1 text-right font-mono text-xs font-bold focus:border-amber-400 focus:bg-white outline-none"></div>{% endif %}</td>
+                            <td class="px-2 py-2.5 text-right font-mono text-sm font-black text-emerald-700 bg-emerald-50/40 net-cell whitespace-nowrap">₱{{ r.net }}</td>
                             <td class="px-1 py-2 text-center no-print">{% if not readonly %}<button type="button" class="delete-row-btn inline-flex h-7 w-7 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 hover:border-red-300" data-id="{{ r.id }}" title="Delete row"><svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>{% endif %}</td>
                         </tr>
                         {% empty %}<tr><td colspan="9" class="px-6 py-10 text-center text-slate-500">No fuel consumption records found.</td></tr>{% endfor %}
@@ -106,14 +143,30 @@
                     {% if rows %}
                     <tfoot class="bg-slate-50 border-t-2 border-slate-900">
                         <tr class="font-bold">
-                            <td colspan="3" class="px-3 py-2.5 text-right text-xs font-black tracking-widest uppercase text-slate-900">Total</td>
-                            <td class="px-2 py-2.5 text-right font-mono text-xs font-black text-slate-900" id="tfoot-total">₱{{ total }}</td>
-                            <td class="px-2 py-2.5 text-center text-[10px] text-slate-400"></td>
-                            <td class="px-2 py-2.5 text-right font-mono text-xs font-black text-amber-700" id="tfoot-wht5">₱{{ total_wht5 }}</td>
-                            <td class="px-2 py-2.5 text-right font-mono text-xs font-black text-amber-700" id="tfoot-wht1">₱{{ total_wht1 }}</td>
-                            <td class="px-2 py-2.5 text-right font-mono text-xs font-black text-emerald-700 bg-emerald-50" id="tfoot-net">₱{{ total_net }}</td>
-                            <td class="px-1 py-2.5 no-print"></td>
+                            <td colspan="3" class="px-3 py-3 text-right text-sm font-black tracking-widest uppercase text-slate-900">Total</td>
+                            <td class="px-2 py-3 text-right font-mono text-sm font-black text-slate-900" id="tfoot-total">₱{{ total }}</td>
+                            <td class="px-2 py-3 text-center text-xs text-slate-400"></td>
+                            <td class="px-2 py-3 text-right font-mono text-sm font-black text-amber-700" id="tfoot-wht5">₱{{ total_wht5 }}</td>
+                            <td class="px-2 py-3 text-right font-mono text-sm font-black text-amber-700" id="tfoot-wht1">₱{{ total_wht1 }}</td>
+                            <td class="px-2 py-3 text-right font-mono text-sm font-black text-emerald-700 bg-emerald-50" id="tfoot-net">₱{{ total_net }}</td>
+                            <td class="px-1 py-3 no-print"></td>
                         </tr>
+                        <tr class="font-bold bg-amber-100 border-t border-amber-300">
+                            <td colspan="5" class="px-3 py-3 text-right text-sm font-black tracking-widest uppercase text-amber-900">Total Withholding Tax (5% + 1%)</td>
+                            <td colspan="2" class="px-2 py-3 text-right font-mono text-sm font-black text-amber-800" id="tfoot-wht-total">₱{{ total_wht }}</td>
+                            <td class="px-2 py-3 text-center text-xs text-slate-400"></td>
+                            <td class="px-1 py-3 no-print"></td>
+                        </tr>
+                        {% if principal %}
+                        <tr class="font-bold bg-blue-50 border-t border-blue-200">
+                            <td colspan="3" class="px-3 py-3 text-right text-sm font-black tracking-widest uppercase text-blue-900">Unutilized Fund <span class="block text-[10px] normal-case tracking-normal text-blue-700/70">(Principal − Total)</span></td>
+                            <td class="px-2 py-3 text-right font-mono text-sm font-bold text-slate-600">₱{{ principal }}</td>
+                            <td class="px-2 py-3 text-center text-xs text-slate-400">−</td>
+                            <td colspan="2" class="px-2 py-3 text-right font-mono text-sm font-black text-blue-700" id="tfoot-unutilized">₱{{ unutilized }}</td>
+                            <td class="px-2 py-3 text-center text-xs text-slate-400"></td>
+                            <td class="px-1 py-3 no-print"></td>
+                        </tr>
+                        {% endif %}
                     </tfoot>
                     {% endif %}
                 </table>
@@ -132,16 +185,51 @@
                         <span class="text-slate-700 font-semibold">Less: Withholding Tax — 1% <span class="text-xs font-normal text-slate-500">(VAT: ÷1.12×1% / Non-VAT: —)</span></span><span class="font-mono font-bold text-amber-700" id="summary-wht1">₱{{ total_wht1 }}</span>
                     </div>
                     <div class="flex justify-between px-4 py-2 bg-emerald-50 border-t border-emerald-100">
-                        <span class="text-emerald-900 font-black">Net Amount <span class="text-xs font-normal text-slate-600">(Amount − WHT 5% − WHT 1%)</span></span><span class="font-mono font-black text-emerald-700" id="summary-net">₱{{ total_net }}</span>
+                        <span class="text-emerald-900 font-black">Net Amount <span class="text-xs font-normal text-slate-600">(Amount − WHT 5% − WHT 1%)</span></span><span class="font-mono font-black text-emerald-700 text-lg" id="summary-net">₱{{ total_net }}</span>
+                    </div>
+                    <div class="flex justify-between px-4 py-2 bg-amber-100 border-t-2 border-amber-300">
+                        <span class="text-amber-900 font-black">Total Withholding Tax <span class="text-xs font-normal text-slate-600">(5% + 1%)</span></span><span class="font-mono font-black text-amber-800 text-lg" id="summary-wht-total">₱{{ total_wht }}</span>
                     </div>
                     <div class="flex justify-between px-4 py-2 bg-slate-50/50">
-                        <span class="text-slate-700">Amount of Cash Advance per DV Check # {% if readonly %}<b class="text-slate-900">{{ check_number|default:"—" }}</b>{% else %}<input type="text" name="check_number" value="{{ check_number }}" placeholder="CHECK NO" class="ml-2 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 font-mono text-xs focus:border-blue-500 focus:bg-white outline-none">{% endif %}</span><span class="font-mono font-bold text-slate-900">{% if principal %}₱{{ principal }}{% else %}—{% endif %}</span>
+                        <span class="text-slate-700">Amount of Cash Advance per DV Check # {% if readonly %}<b class="text-slate-900">{{ check_number|default:"—" }}</b>{% else %}<input type="text" name="check_number" value="{{ check_number }}" placeholder="CHECK NO" class="ml-2 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 font-mono text-xs focus:border-blue-500 focus:bg-white outline-none">{% endif %}</span><span class="font-mono font-bold text-slate-900 text-lg">{% if principal %}₱{{ principal }}{% else %}—{% endif %}</span>
+                    </div>
+                    <div class="flex justify-between px-4 py-2 bg-blue-50 border-t border-blue-200">
+                        <span class="text-blue-900 font-black">Unutilized Fund <span class="text-xs font-normal text-slate-600">(Principal − Total Spent)</span></span><span class="font-mono font-black text-blue-700 text-lg" id="summary-unutilized">{% if principal %}₱{{ unutilized }}{% else %}—{% endif %}</span>
+                    </div>
+                    <div class="flex justify-between px-4 py-2 bg-blue-50/60">
+                        <span class="text-blue-800 font-semibold">Unutilized Fund <span class="text-xs font-normal text-slate-500">(Principal − Net Amount)</span></span><span class="font-mono font-bold text-blue-700" id="summary-unutilized-net">{% if principal %}₱{{ unutilized_net }}{% else %}—{% endif %}</span>
                     </div>
                     <div class="flex justify-between px-4 py-2 text-[11px] text-slate-500 bg-slate-50/30 border-t border-dashed border-slate-200">
-                        <span>Reconciliation — Principal (Cash Advance) covers Total Spent + WHT</span><span class="font-mono text-slate-700">{% if principal %}₱{{ principal }} | Total ₱{{ total }} | WHT ₱{{ total_wht5 }} + ₱{{ total_wht1 }} | Net ₱{{ total_net }}{% endif %}</span>
+                        <span>Reconciliation — Principal covers Total Spent + WHT = Net + Total WHT</span><span class="font-mono text-slate-700">{% if principal %}₱{{ principal }} | Total ₱{{ total }} | WHT ₱{{ total_wht }} ({{ total_wht5 }}+{{ total_wht1 }}) | Net ₱{{ total_net }} | Unutilized ₱{{ unutilized }}{% endif %}</span>
                     </div>
-                    <div class="flex justify-between px-4 py-2 text-slate-600"><span>Amount Refund per OR #</span><span></span></div>
-                    <div class="flex justify-between px-4 py-2 text-slate-600"><span>Amount Reimbursed</span><span></span></div>
+                    <div class="flex justify-between items-center px-4 py-2 bg-slate-50/50 border-t border-slate-100 gap-2">
+                        <span class="text-slate-700 font-semibold shrink-0">Amount Refund per OR #</span>
+                        {% if readonly %}
+                            <div class="flex items-center gap-2 shrink-0">
+                                <span class="font-mono text-xs font-semibold text-slate-600 whitespace-nowrap">OR # {% if refund_or_number %}{{ refund_or_number }}{% else %}—{% endif %}</span>
+                                <span class="font-mono font-bold text-slate-900 whitespace-nowrap">{% if amount_refund_per_or %}₱{{ amount_refund_per_or }}{% else %}—{% endif %}</span>
+                            </div>
+                        {% else %}
+                            <div class="flex items-center gap-2 shrink-0">
+                                <input type="text" name="refund_or_number" value="{{ refund_or_number }}" placeholder="OR NO" class="w-28 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-center font-mono text-xs font-semibold focus:border-blue-500 focus:bg-white outline-none">
+                                <div class="flex items-center gap-1">
+                                    <span class="text-slate-400">₱</span>
+                                    <input type="text" name="amount_refund_per_or" value="{{ amount_refund_per_or }}" placeholder="0.00" class="w-32 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-right font-mono text-sm font-bold focus:border-blue-500 focus:bg-white outline-none">
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="flex justify-between items-center px-4 py-2 bg-slate-50/50 border-t border-slate-100">
+                        <span class="text-slate-700 font-semibold">Amount Reimbursed</span>
+                        {% if readonly %}
+                            <span class="font-mono font-bold text-slate-900 whitespace-nowrap">{% if amount_reimbursed %}₱{{ amount_reimbursed }}{% else %}—{% endif %}</span>
+                        {% else %}
+                            <div class="flex items-center gap-1">
+                                <span class="text-slate-400">₱</span>
+                                <input type="text" name="amount_reimbursed" value="{{ amount_reimbursed }}" placeholder="0.00" class="w-36 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-right font-mono text-sm font-bold focus:border-blue-500 focus:bg-white outline-none">
+                            </div>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
 
@@ -170,7 +258,7 @@
 <script>
 (function(){
   function fmt(n){ return '₱' + n.toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2}); }
-  function parseAmt(s){ if(!s) return 0; var v=parseFloat(String(s).replace(/,/g,'').trim()); return isNaN(v)?0:v; }
+  function parseAmt(s){ if(!s) return 0; var v=parseFloat(String(s).replace(/,/g,'').replace(/₱/g,'').trim()); return isNaN(v)?0:v; }
   function recalc(){
     var rows=document.querySelectorAll('tbody tr');
     var tAmt=0,tW5=0,tW1=0,tNet=0;
@@ -181,39 +269,114 @@
       var vatChk=tr.querySelector('.vat-input');
       var isVat = vatChk ? vatChk.checked : true;
       var amt=parseAmt(inp.value);
+      var w5Input=tr.querySelector('.wht5-input');
+      var w1Input=tr.querySelector('.wht1-input');
       var w5, w1;
-      if(isVat){ w5 = Math.round((amt/1.12*0.05)*100)/100; w1 = Math.round((amt/1.12*0.01)*100)/100; }
-      else { w5 = 0; w1 = 0; }
-      var net = Math.round((amt - w5 - w1)*100)/100;
+      // If WHT inputs exist, use their current values for net (allow dynamic input per OR #)
+      // But if they are empty or not manually edited, compute from VAT
+      if(w5Input || w1Input){
+        // Compute defaults
+        var w5_auto = isVat ? Math.round((amt/1.12*0.05)*100)/100 : 0;
+        var w1_auto = isVat ? Math.round((amt/1.12*0.01)*100)/100 : 0;
+        // If input has manual flag, keep its value, else set to auto
+        if(w5Input){
+          if(w5Input.dataset.manual !== 'true' || w5Input.value.trim() === ''){
+            // Update to auto if not manually edited
+            if(document.activeElement !== w5Input) w5Input.value = w5_auto.toFixed(2);
+          }
+          w5 = parseAmt(w5Input.value);
+          // If user cleared, fallback to auto
+          if(w5Input.value.trim() === '') w5 = w5_auto;
+        } else {
+          w5 = w5_auto;
+        }
+        if(w1Input){
+          if(w1Input.dataset.manual !== 'true' || w1Input.value.trim() === ''){
+            if(document.activeElement !== w1Input) w1Input.value = w1_auto.toFixed(2);
+          }
+          w1 = parseAmt(w1Input.value);
+          if(w1Input.value.trim() === '') w1 = w1_auto;
+        } else {
+          w1 = w1_auto;
+        }
+      } else {
+        if(isVat){ w5 = Math.round((amt/1.12*0.05)*100)/100; w1 = Math.round((amt/1.12*0.01)*100)/100; }
+        else { w5 = 0; w1 = 0; }
+      }
+      // If no WHT inputs, update display cells
       var c5=tr.querySelector('.wht5-cell');
       var c1=tr.querySelector('.wht1-cell');
+      // When inputs exist, c5 is the td containing input, not the input itself. The old code set c5.textContent, but now we need to handle.
+      // For display mode without inputs, update text
+      if(!w5Input && c5) c5.textContent=fmt(w5);
+      if(!w1Input && c1) c1.textContent=fmt(w1);
+      var net = Math.round((amt - w5 - w1)*100)/100;
       var cn=tr.querySelector('.net-cell');
-      var lab=tr.querySelector('.vat-label');
-      if(c5) c5.textContent=fmt(w5);
-      if(c1) c1.textContent=fmt(w1);
       if(cn) cn.textContent=fmt(net);
+      var lab=tr.querySelector('.vat-label');
       if(lab) { lab.textContent = isVat ? 'VAT' : 'Non-VAT'; lab.className = 'text-[10px] font-bold ' + (isVat ? 'text-emerald-700' : 'text-slate-500') + ' vat-label'; }
       tAmt+=amt; tW5+=w5; tW1+=w1; tNet+=net;
     });
+    tAmt=Math.round(tAmt*100)/100; tW5=Math.round(tW5*100)/100; tW1=Math.round(tW1*100)/100; tNet=Math.round(tNet*100)/100;
+    var tWHT=Math.round((tW5+tW1)*100)/100;
+    var principalInput=document.querySelector('[name="principal"]');
+    var principalVal = principalInput ? parseAmt(principalInput.value) : 0;
+    var unutil = principalInput && principalInput.value.trim() !== '' ? Math.round((principalVal - tAmt)*100)/100 : null;
+    var unutilNet = principalInput && principalInput.value.trim() !== '' ? Math.round((principalVal - tNet)*100)/100 : null;
     var fTot=document.getElementById('tfoot-total');
     var fW5=document.getElementById('tfoot-wht5');
     var fW1=document.getElementById('tfoot-wht1');
     var fNet=document.getElementById('tfoot-net');
-    if(fTot) fTot.textContent=fmt(Math.round(tAmt*100)/100);
-    if(fW5) fW5.textContent=fmt(Math.round(tW5*100)/100);
-    if(fW1) fW1.textContent=fmt(Math.round(tW1*100)/100);
-    if(fNet) fNet.textContent=fmt(Math.round(tNet*100)/100);
+    if(fTot) fTot.textContent=fmt(tAmt);
+    if(fW5) fW5.textContent=fmt(tW5);
+    if(fW1) fW1.textContent=fmt(tW1);
+    if(fNet) fNet.textContent=fmt(tNet);
+    var fWHT=document.getElementById('tfoot-wht-total');
+    if(fWHT) fWHT.textContent=fmt(tWHT);
+    var fUn=document.getElementById('tfoot-unutilized');
+    if(fUn) fUn.textContent = (unutil === null) ? '—' : fmt(unutil);
     var sTot=document.getElementById('summary-total');
     var sW5=document.getElementById('summary-wht5');
     var sW1=document.getElementById('summary-wht1');
     var sNet=document.getElementById('summary-net');
-    if(sTot) sTot.textContent=fmt(Math.round(tAmt*100)/100);
-    if(sW5) sW5.textContent=fmt(Math.round(tW5*100)/100);
-    if(sW1) sW1.textContent=fmt(Math.round(tW1*100)/100);
-    if(sNet) sNet.textContent=fmt(Math.round(tNet*100)/100);
+    if(sTot) sTot.textContent=fmt(tAmt);
+    if(sW5) sW5.textContent=fmt(tW5);
+    if(sW1) sW1.textContent=fmt(tW1);
+    if(sNet) sNet.textContent=fmt(tNet);
+    var sWHT=document.getElementById('summary-wht-total');
+    if(sWHT) sWHT.textContent=fmt(tWHT);
+    var sUn=document.getElementById('summary-unutilized');
+    if(sUn) sUn.textContent = (unutil === null) ? '—' : fmt(unutil);
+    var sUnNet=document.getElementById('summary-unutilized-net');
+    if(sUnNet) sUnNet.textContent = (unutilNet === null) ? '—' : fmt(unutilNet);
   }
-  document.addEventListener('input', function(e){ if(e.target.classList.contains('amount-input')) recalc(); });
-  document.addEventListener('change', function(e){ if(e.target.classList.contains('vat-input')) recalc(); });
+  // Mark WHT inputs as manually edited when user types
+  document.addEventListener('input', function(e){
+    if(e.target.classList.contains('wht5-input') || e.target.classList.contains('wht1-input')){
+      e.target.dataset.manual = 'true';
+      // If user clears, reset manual flag to allow auto
+      if(e.target.value.trim() === '') e.target.dataset.manual = '';
+      recalc();
+    } else if(e.target.classList.contains('amount-input') || e.target.name==='principal'){
+      recalc();
+    }
+  });
+  document.addEventListener('change', function(e){
+    if(e.target.classList.contains('vat-input')){
+      // On VAT change, reset manual flags for that row so WHT recomputes
+      var tr=e.target.closest('tr');
+      if(tr){
+        var w5=tr.querySelector('.wht5-input');
+        var w1=tr.querySelector('.wht1-input');
+        if(w5) w5.dataset.manual='';
+        if(w1) w1.dataset.manual='';
+      }
+      recalc();
+    }
+    if(e.target.name==='amount_refund_per_or' || e.target.name==='amount_reimbursed'){
+      // No calc needed, just ensure display
+    }
+  });
   document.addEventListener('click', function(e){
     var btn = e.target.closest('.delete-row-btn');
     if(!btn) return;

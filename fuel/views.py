@@ -1,7 +1,8 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView, DetailView
 from django.urls import reverse_lazy, reverse
-from django.db.models import Sum
+from django.db.models import Sum, Max
+from django.db import models
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_GET
 from django.core.paginator import Paginator
@@ -2069,6 +2070,8 @@ def liquidation_report_view(request):
     if request.method == 'POST':
         edited_amounts = {}
         edited_vat = {}
+        edited_wht5 = {}
+        edited_wht1 = {}
         deleted_ids = set()
         for trip in trips:
             # per-row delete: if delete_<id> present, skip this trip (exclude from saved report)
@@ -2087,12 +2090,43 @@ def liquidation_report_view(request):
                     pass
             # VAT checkbox: checked = VAT inclusive (divide by 1.12). Unchecked = Non-VAT (optional)
             edited_vat[trip.id] = f'vat_{trip.id}' in request.POST
+            # Dynamic WHT inputs per OR # - if provided, override computed
+            wht5_str = request.POST.get(f'wht5_{trip.id}', '').strip().replace(',', '').replace('₱','')
+            if wht5_str:
+                try:
+                    edited_wht5[trip.id] = Decimal(wht5_str)
+                except Exception:
+                    pass
+            wht1_str = request.POST.get(f'wht1_{trip.id}', '').strip().replace(',', '').replace('₱','')
+            if wht1_str:
+                try:
+                    edited_wht1[trip.id] = Decimal(wht1_str)
+                except Exception:
+                    pass
         principal = request.POST.get('principal', '').strip().replace(',', '')
         if principal:
             try:
                 setting.principal_amount = Decimal(principal)
             except Exception:
                 pass
+        # Footer dynamic amounts - OR number for refund is now editable
+        setting.refund_or_number = request.POST.get('refund_or_number', '').strip() or None
+        refund_str = request.POST.get('amount_refund_per_or', '').strip().replace(',', '').replace('₱','')
+        if refund_str:
+            try:
+                setting.amount_refund_per_or = Decimal(refund_str)
+            except Exception:
+                pass
+        else:
+            setting.amount_refund_per_or = None
+        reimbursed_str = request.POST.get('amount_reimbursed', '').strip().replace(',', '').replace('₱','')
+        if reimbursed_str:
+            try:
+                setting.amount_reimbursed = Decimal(reimbursed_str)
+            except Exception:
+                pass
+        else:
+            setting.amount_reimbursed = None
         setting.check_number = request.POST.get('check_number', '').strip() or None
         setting.save()
 
@@ -2100,12 +2134,18 @@ def liquidation_report_view(request):
         saved_report = LiquidationReport.objects.create(
             principal_amount=setting.principal_amount,
             check_number=setting.check_number or '',
+            refund_or_number=setting.refund_or_number or '',
+            amount_refund_per_or=setting.amount_refund_per_or,
+            amount_reimbursed=setting.amount_reimbursed,
         )
         for trip in trips:
             if trip.id in deleted_ids:
                 continue
             amount_to_save = edited_amounts.get(trip.id, Decimal(str(trip.cost)))
             vat_inc = edited_vat.get(trip.id, True)
+            # Use edited WHT if provided, otherwise None (will compute)
+            wht5_val = edited_wht5.get(trip.id)
+            wht1_val = edited_wht1.get(trip.id)
             LiquidationReportEntry.objects.create(
                 report=saved_report,
                 entry_date=trip.date,
@@ -2113,6 +2153,8 @@ def liquidation_report_view(request):
                 fuel_type='Diesel',
                 amount=amount_to_save,
                 vat_inclusive=vat_inc,
+                wht5_amount=wht5_val,
+                wht1_amount=wht1_val,
             )
         return redirect('saved_liquidation_reports')
 
@@ -2151,14 +2193,25 @@ def liquidation_report_view(request):
     total_wht5 = total_wht5.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
     total_wht1 = total_wht1.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
     total_net = total_net.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    total_wht = (total_wht5 + total_wht1).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    principal_dec = setting.principal_amount if setting.principal_amount else Decimal('0.00')
+    unutilized = (principal_dec - total).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP) if setting.principal_amount else Decimal('0.00')
+    unutilized_net = (principal_dec - total_net).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP) if setting.principal_amount else Decimal('0.00')
 
     context = {
         'rows': rows,
         'total': f"{total:,.2f}",
         'total_wht5': f"{total_wht5:,.2f}",
         'total_wht1': f"{total_wht1:,.2f}",
+        'total_wht': f"{total_wht:,.2f}",
         'total_net': f"{total_net:,.2f}",
         'principal': f"{setting.principal_amount:,.2f}" if setting.principal_amount else '',
+        'principal_raw': principal_dec,
+        'unutilized': f"{unutilized:,.2f}" if setting.principal_amount else '',
+        'unutilized_net': f"{unutilized_net:,.2f}" if setting.principal_amount else '',
+        'refund_or_number': setting.refund_or_number or '',
+        'amount_refund_per_or': f"{setting.amount_refund_per_or:,.2f}" if setting.amount_refund_per_or else '',
+        'amount_reimbursed': f"{setting.amount_reimbursed:,.2f}" if setting.amount_reimbursed else '',
         'check_number': setting.check_number or '',
         'today': date.today(),
     }
@@ -2177,11 +2230,18 @@ def saved_liquidation_reports(request):
             amt = Decimal(e.amount)
             total += amt
             vat_inc = getattr(e, 'vat_inclusive', True)
-            if vat_inc:
+            # Use stored WHT if dynamically input per OR #, else compute
+            if e.wht5_amount is not None:
+                wht5 = Decimal(e.wht5_amount).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            elif vat_inc:
                 wht5 = (amt / Decimal('1.12') * Decimal('0.05')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-                wht1 = (amt / Decimal('1.12') * Decimal('0.01')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
             else:
                 wht5 = Decimal('0.00')
+            if e.wht1_amount is not None:
+                wht1 = Decimal(e.wht1_amount).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            elif vat_inc:
+                wht1 = (amt / Decimal('1.12') * Decimal('0.01')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            else:
                 wht1 = Decimal('0.00')
             net = (amt - wht5 - wht1).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
             wht5_sum += wht5
@@ -2192,11 +2252,21 @@ def saved_liquidation_reports(request):
             wht5_sum = (total / Decimal('1.12') * Decimal('0.05')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP) if total else Decimal('0.00')
             wht1_sum = (total / Decimal('1.12') * Decimal('0.01')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP) if total else Decimal('0.00')
             net_sum = (total - wht5_sum - wht1_sum).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP) if total else Decimal('0.00')
+        wht_sum = (wht5_sum + wht1_sum).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        principal_dec = report.principal_amount if report.principal_amount else Decimal('0.00')
+        unutilized = (principal_dec - total).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP) if report.principal_amount else Decimal('0.00')
+        unutilized_net = (principal_dec - net_sum).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP) if report.principal_amount else Decimal('0.00')
         report.total_display = f'{total:,.2f}'
         report.principal_display = f'{report.principal_amount:,.2f}' if report.principal_amount else ''
         report.wht5_display = f'{wht5_sum:,.2f}'
         report.wht1_display = f'{wht1_sum:,.2f}'
+        report.wht_display = f'{wht_sum:,.2f}'
         report.net_display = f'{net_sum:,.2f}'
+        report.unutilized_display = f'{unutilized:,.2f}' if report.principal_amount else ''
+        report.unutilized_net_display = f'{unutilized_net:,.2f}' if report.principal_amount else ''
+        report.amount_refund_per_or_display = f'{report.amount_refund_per_or:,.2f}' if report.amount_refund_per_or else ''
+        report.amount_reimbursed_display = f'{report.amount_reimbursed:,.2f}' if report.amount_reimbursed else ''
+        report.refund_or_number_display = report.refund_or_number or ''
     return render(request, 'fuel/liquidation_saved_reports.html', {'reports': reports})
 
 
@@ -2211,11 +2281,17 @@ def liquidation_report_reprint(request, report_id):
     for entry in entries:
         amt = Decimal(entry.amount)
         vat_inc = getattr(entry, 'vat_inclusive', True)
-        if vat_inc:
+        if entry.wht5_amount is not None:
+            wht5 = Decimal(entry.wht5_amount).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        elif vat_inc:
             wht5 = (amt / Decimal('1.12') * Decimal('0.05')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-            wht1 = (amt / Decimal('1.12') * Decimal('0.01')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
         else:
             wht5 = Decimal('0.00')
+        if entry.wht1_amount is not None:
+            wht1 = Decimal(entry.wht1_amount).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        elif vat_inc:
+            wht1 = (amt / Decimal('1.12') * Decimal('0.01')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        else:
             wht1 = Decimal('0.00')
         net = (amt - wht5 - wht1).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
         rows.append({
@@ -2237,13 +2313,23 @@ def liquidation_report_reprint(request, report_id):
     total_wht5 = total_wht5.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
     total_wht1 = total_wht1.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
     total_net = total_net.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    total_wht = (total_wht5 + total_wht1).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    principal_dec = report.principal_amount if report.principal_amount else Decimal('0.00')
+    unutilized = (principal_dec - total).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP) if report.principal_amount else Decimal('0.00')
+    unutilized_net = (principal_dec - total_net).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP) if report.principal_amount else Decimal('0.00')
     context = {
         'rows': rows,
         'total': f'{total:,.2f}',
         'total_wht5': f'{total_wht5:,.2f}',
         'total_wht1': f'{total_wht1:,.2f}',
+        'total_wht': f'{total_wht:,.2f}',
         'total_net': f'{total_net:,.2f}',
         'principal': f'{report.principal_amount:,.2f}' if report.principal_amount else '',
+        'unutilized': f'{unutilized:,.2f}' if report.principal_amount else '',
+        'unutilized_net': f'{unutilized_net:,.2f}' if report.principal_amount else '',
+        'refund_or_number': report.refund_or_number or '',
+        'amount_refund_per_or': f'{report.amount_refund_per_or:,.2f}' if report.amount_refund_per_or else '',
+        'amount_reimbursed': f'{report.amount_reimbursed:,.2f}' if report.amount_reimbursed else '',
         'check_number': report.check_number or '',
         'today': report.report_date,
         'report': report,
@@ -2275,12 +2361,54 @@ def liquidation_report_edit(request, report_id):
             vat_inc = f'vat_{entry.id}' in request.POST
             if vat_inc != getattr(entry, 'vat_inclusive', True):
                 LiquidationReportEntry.objects.filter(pk=entry.pk).update(vat_inclusive=vat_inc)
+            # Dynamic WHT per OR # - editable amount of withholding tax per row
+            if f'wht5_{entry.id}' in request.POST:
+                wht5_str = request.POST.get(f'wht5_{entry.id}', '').strip().replace(',', '').replace('₱','')
+                if wht5_str:
+                    try:
+                        wht5_val = Decimal(wht5_str)
+                        LiquidationReportEntry.objects.filter(pk=entry.pk).update(wht5_amount=wht5_val)
+                    except Exception:
+                        pass
+                else:
+                    # If cleared, reset to None to recompute
+                    if entry.wht5_amount is not None:
+                        LiquidationReportEntry.objects.filter(pk=entry.pk).update(wht5_amount=None)
+            if f'wht1_{entry.id}' in request.POST:
+                wht1_str = request.POST.get(f'wht1_{entry.id}', '').strip().replace(',', '').replace('₱','')
+                if wht1_str:
+                    try:
+                        wht1_val = Decimal(wht1_str)
+                        LiquidationReportEntry.objects.filter(pk=entry.pk).update(wht1_amount=wht1_val)
+                    except Exception:
+                        pass
+                else:
+                    if entry.wht1_amount is not None:
+                        LiquidationReportEntry.objects.filter(pk=entry.pk).update(wht1_amount=None)
         principal = request.POST.get('principal', '').strip().replace(',', '')
         if principal:
             try:
                 report.principal_amount = Decimal(principal)
             except Exception:
                 pass
+        # Footer dynamic amounts - OR number for refund is now editable
+        report.refund_or_number = request.POST.get('refund_or_number', '').strip() or None
+        refund_str = request.POST.get('amount_refund_per_or', '').strip().replace(',', '').replace('₱','')
+        if refund_str:
+            try:
+                report.amount_refund_per_or = Decimal(refund_str)
+            except Exception:
+                pass
+        else:
+            report.amount_refund_per_or = None
+        reimbursed_str = request.POST.get('amount_reimbursed', '').strip().replace(',', '').replace('₱','')
+        if reimbursed_str:
+            try:
+                report.amount_reimbursed = Decimal(reimbursed_str)
+            except Exception:
+                pass
+        else:
+            report.amount_reimbursed = None
         report.check_number = request.POST.get('check_number', '').strip() or None
         report.save()
         return redirect('liquidation_report_reprint', report_id=report.pk)
@@ -2293,11 +2421,17 @@ def liquidation_report_edit(request, report_id):
     for entry in entries:
         amt = Decimal(entry.amount)
         vat_inc = getattr(entry, 'vat_inclusive', True)
-        if vat_inc:
+        if entry.wht5_amount is not None:
+            wht5 = Decimal(entry.wht5_amount).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        elif vat_inc:
             wht5 = (amt / Decimal('1.12') * Decimal('0.05')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-            wht1 = (amt / Decimal('1.12') * Decimal('0.01')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
         else:
             wht5 = Decimal('0.00')
+        if entry.wht1_amount is not None:
+            wht1 = Decimal(entry.wht1_amount).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        elif vat_inc:
+            wht1 = (amt / Decimal('1.12') * Decimal('0.01')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        else:
             wht1 = Decimal('0.00')
         net = (amt - wht5 - wht1).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
         rows.append({
@@ -2319,13 +2453,23 @@ def liquidation_report_edit(request, report_id):
     total_wht5 = total_wht5.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
     total_wht1 = total_wht1.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
     total_net = total_net.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    total_wht = (total_wht5 + total_wht1).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    principal_dec = report.principal_amount if report.principal_amount else Decimal('0.00')
+    unutilized = (principal_dec - total).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP) if report.principal_amount else Decimal('0.00')
+    unutilized_net = (principal_dec - total_net).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP) if report.principal_amount else Decimal('0.00')
     context = {
         'rows': rows,
         'total': f'{total:,.2f}',
         'total_wht5': f'{total_wht5:,.2f}',
         'total_wht1': f'{total_wht1:,.2f}',
+        'total_wht': f'{total_wht:,.2f}',
         'total_net': f'{total_net:,.2f}',
         'principal': f'{report.principal_amount:,.2f}' if report.principal_amount else '',
+        'unutilized': f'{unutilized:,.2f}' if report.principal_amount else '',
+        'unutilized_net': f'{unutilized_net:,.2f}' if report.principal_amount else '',
+        'refund_or_number': report.refund_or_number or '',
+        'amount_refund_per_or': f'{report.amount_refund_per_or:,.2f}' if report.amount_refund_per_or else '',
+        'amount_reimbursed': f'{report.amount_reimbursed:,.2f}' if report.amount_reimbursed else '',
         'check_number': report.check_number or '',
         'today': report.report_date,
         'report': report,
@@ -2350,15 +2494,21 @@ def export_liquidation_report_pdf(request, report_id=None):
         entries = report.entries.order_by('entry_date')
         principal_value_src = report.principal_amount
         check_number_src = report.check_number or ''
+        refund_or_number_src = report.refund_or_number or ''
+        refund_value_src = report.amount_refund_per_or
+        reimbursed_value_src = report.amount_reimbursed
         total_src = report.total()
-        detail_rows = [(e.entry_date, e.or_number or '', e.fuel_type, e.amount, getattr(e, 'vat_inclusive', True)) for e in entries]
+        detail_rows = [(e.entry_date, e.or_number or '', e.fuel_type, e.amount, getattr(e, 'vat_inclusive', True), e.wht5_amount, e.wht1_amount) for e in entries]
     else:
         trips = FuelConsumption.objects.select_related('driver').order_by('date', 'reference_number')
         setting, _ = LiquidationSetting.objects.get_or_create(pk=1)
         principal_value_src = setting.principal_amount
         check_number_src = setting.check_number or ''
+        refund_or_number_src = setting.refund_or_number or ''
+        refund_value_src = setting.amount_refund_per_or
+        reimbursed_value_src = setting.amount_reimbursed
         total_src = sum(trip.cost for trip in trips)
-        detail_rows = [(trip.date, trip.or_number or '', 'Diesel', trip.cost, True) for trip in trips]
+        detail_rows = [(trip.date, trip.or_number or '', 'Diesel', trip.cost, True, None, None) for trip in trips]
 
     response = HttpResponse(content_type='application/pdf')
     response['Content-Disposition'] = 'attachment; filename="liquidation_report.pdf"'
@@ -2392,11 +2542,11 @@ def export_liquidation_report_pdf(request, report_id=None):
     elements = []
 
     title_style = ParagraphStyle(
-        'LiqTitle', parent=styles['Normal'], fontSize=16,
-        fontName=bold_font_name, spaceAfter=4, leading=20, alignment=1
+        'LiqTitle', parent=styles['Normal'], fontSize=18,
+        fontName=bold_font_name, spaceAfter=4, leading=22, alignment=1
     )
     field_style = ParagraphStyle(
-        'LiqField', parent=styles['Normal'], fontSize=10, fontName=font_name
+        'LiqField', parent=styles['Normal'], fontSize=12, fontName=font_name
     )
     elements.append(Paragraph('LIQUIDATION REPORT', title_style))
 
@@ -2428,19 +2578,19 @@ def export_liquidation_report_pdf(request, report_id=None):
     elements.append(Spacer(1, 10))
 
     desc_style = ParagraphStyle(
-        'LiqDesc', parent=styles['Normal'], fontSize=10,
-        fontName=font_name, leading=14
+        'LiqDesc', parent=styles['Normal'], fontSize=12,
+        fontName=font_name, leading=15
     )
     total_style = ParagraphStyle(
-        'LiqTotal', parent=styles['Normal'], fontSize=10, fontName=bold_font_name
+        'LiqTotal', parent=styles['Normal'], fontSize=12, fontName=bold_font_name
     )
     principal_value = f'{principal_value_src:,.2f}' if principal_value_src else ''
     amount_label_style = ParagraphStyle(
-        'LiqAmountLabel', parent=styles['Normal'], fontSize=9,
-        fontName=bold_font_name, alignment=2, leading=11
+        'LiqAmountLabel', parent=styles['Normal'], fontSize=11,
+        fontName=bold_font_name, alignment=2, leading=13
     )
     amount_value_style = ParagraphStyle(
-        'LiqAmountValue', parent=styles['Normal'], fontSize=10,
+        'LiqAmountValue', parent=styles['Normal'], fontSize=12,
         fontName=bold_font_name, alignment=2
     )
     principal_table = Table(
@@ -2450,7 +2600,7 @@ def export_liquidation_report_pdf(request, report_id=None):
             desc_style
         ), Paragraph('AMOUNT', amount_label_style)],
          ['', Paragraph(principal_value, amount_value_style)]],
-        colWidths=[400, 132]
+        colWidths=[380, 152]
     )
     principal_table.setStyle(TableStyle([
         ('SPAN', (0, 0), (0, 1)),
@@ -2469,18 +2619,19 @@ def export_liquidation_report_pdf(request, report_id=None):
     elements.append(Spacer(1, 10))
 
     partic_style = ParagraphStyle(
-        'LiqPart', parent=styles['Normal'], fontSize=11, fontName=bold_font_name,
+        'LiqPart', parent=styles['Normal'], fontSize=14, fontName=bold_font_name,
         alignment=1, spaceBefore=8, spaceAfter=4
     )
     elements.append(Paragraph('PARTICULARS', partic_style))
 
     # Build detail table with Withholding Tax 5%/1% (computed as amount/1.12*rate) and Net Amount - print-friendly white header with black text (no solid ink)
-    header_cell_style = ParagraphStyle('LiqHeadCell', parent=styles['Normal'], fontSize=6.5, fontName=bold_font_name, textColor=colors.black, alignment=1, leading=7)
-    header_sub_style = ParagraphStyle('LiqHeadSub', parent=styles['Normal'], fontSize=6.5, fontName=bold_font_name, textColor=colors.black, alignment=1, leading=7)
-    cell_center_style = ParagraphStyle('LiqCellCenter', parent=styles['Normal'], fontSize=6.5, fontName=font_name, alignment=1, leading=7)
-    cell_right_style = ParagraphStyle('LiqCellRight', parent=styles['Normal'], fontSize=6.5, fontName=font_name, alignment=2, leading=7)
-    cell_bold_right_style = ParagraphStyle('LiqCellBoldRight', parent=styles['Normal'], fontSize=6.5, fontName=bold_font_name, alignment=2, leading=7)
-    cell_bold_center_style = ParagraphStyle('LiqCellBoldCenter', parent=styles['Normal'], fontSize=6.5, fontName=bold_font_name, alignment=1, leading=7)
+    # Larger fonts for elder readability (was 6.5 -> now 9)
+    header_cell_style = ParagraphStyle('LiqHeadCell', parent=styles['Normal'], fontSize=9, fontName=bold_font_name, textColor=colors.black, alignment=1, leading=10)
+    header_sub_style = ParagraphStyle('LiqHeadSub', parent=styles['Normal'], fontSize=9, fontName=bold_font_name, textColor=colors.black, alignment=1, leading=10)
+    cell_center_style = ParagraphStyle('LiqCellCenter', parent=styles['Normal'], fontSize=9, fontName=font_name, alignment=1, leading=10)
+    cell_right_style = ParagraphStyle('LiqCellRight', parent=styles['Normal'], fontSize=9, fontName=font_name, alignment=2, leading=10)
+    cell_bold_right_style = ParagraphStyle('LiqCellBoldRight', parent=styles['Normal'], fontSize=9, fontName=bold_font_name, alignment=2, leading=10)
+    cell_bold_center_style = ParagraphStyle('LiqCellBoldCenter', parent=styles['Normal'], fontSize=9, fontName=bold_font_name, alignment=1, leading=10)
     # Header rows: Withholding Tax 5%/1% grouped - VAT flag hidden in PDF (WHT applied per row if VAT checked, else 0)
     detail_data = [
         [Paragraph('Date', header_cell_style), Paragraph('OR Receipt #', header_cell_style), Paragraph('Fuel Type', header_cell_style), Paragraph('Amount', header_cell_style), Paragraph('Withholding Tax', header_cell_style), '', Paragraph('Net Amount', header_cell_style)],
@@ -2492,18 +2643,28 @@ def export_liquidation_report_pdf(request, report_id=None):
     total_wht1_src = Decimal('0.00')
     total_net_src = Decimal('0.00')
     for row in detail_rows:
-        # row = (date, or_no, fuel_type, amount, vat_inclusive) or legacy 4-tuple
-        if len(row) == 5:
+        # row = (date, or_no, fuel_type, amount, vat_inclusive, wht5_stored, wht1_stored) or legacy
+        if len(row) == 7:
+            _, _, _, amount, vat_inc, wht5_stored, wht1_stored = row
+        elif len(row) == 5:
             _, _, _, amount, vat_inc = row
+            wht5_stored = wht1_stored = None
         else:
             _, _, _, amount = row
             vat_inc = True
+            wht5_stored = wht1_stored = None
         amt = Decimal(str(amount))
-        if vat_inc:
+        if wht5_stored is not None:
+            wht5 = Decimal(str(wht5_stored)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        elif vat_inc:
             wht5 = (amt / Decimal('1.12') * Decimal('0.05')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-            wht1 = (amt / Decimal('1.12') * Decimal('0.01')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
         else:
             wht5 = Decimal('0.00')
+        if wht1_stored is not None:
+            wht1 = Decimal(str(wht1_stored)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        elif vat_inc:
+            wht1 = (amt / Decimal('1.12') * Decimal('0.01')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        else:
             wht1 = Decimal('0.00')
         net = (amt - wht5 - wht1).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
         total_wht5_src += wht5
@@ -2513,18 +2674,33 @@ def export_liquidation_report_pdf(request, report_id=None):
     total_wht1_src = total_wht1_src.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
     total_net_src = total_net_src.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
     total_dec = total_dec.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    # Added: total WHT (5%+1%) and unutilized fund (Principal - Total / Principal - Net) for footer
+    total_wht_src = (total_wht5_src + total_wht1_src).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    principal_dec = Decimal(str(principal_value_src)) if principal_value_src else Decimal('0.00')
+    unutilized_src = (principal_dec - total_dec).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP) if principal_value_src else Decimal('0.00')
+    unutilized_net_src = (principal_dec - total_net_src).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP) if principal_value_src else Decimal('0.00')
     for row in detail_rows:
-        if len(row) == 5:
+        if len(row) == 7:
+            entry_date, or_no, fuel_type, amount, vat_inc, wht5_stored, wht1_stored = row
+        elif len(row) == 5:
             entry_date, or_no, fuel_type, amount, vat_inc = row
+            wht5_stored = wht1_stored = None
         else:
             entry_date, or_no, fuel_type, amount = row
             vat_inc = True
+            wht5_stored = wht1_stored = None
         amt = Decimal(str(amount))
-        if vat_inc:
+        if wht5_stored is not None:
+            wht5 = Decimal(str(wht5_stored)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        elif vat_inc:
             wht5 = (amt / Decimal('1.12') * Decimal('0.05')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-            wht1 = (amt / Decimal('1.12') * Decimal('0.01')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
         else:
             wht5 = Decimal('0.00')
+        if wht1_stored is not None:
+            wht1 = Decimal(str(wht1_stored)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        elif vat_inc:
+            wht1 = (amt / Decimal('1.12') * Decimal('0.01')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        else:
             wht1 = Decimal('0.00')
         net = (amt - wht5 - wht1).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
         detail_data.append([
@@ -2546,12 +2722,12 @@ def export_liquidation_report_pdf(request, report_id=None):
         Paragraph(f'{total_wht1_src:,.2f}', cell_bold_right_style),
         Paragraph(f'{total_net_src:,.2f}', cell_bold_right_style),
     ])
-    detail_table = Table(detail_data, colWidths=[58, 108, 48, 68, 62, 62, 76], repeatRows=2)
+    detail_table = Table(detail_data, colWidths=[55, 95, 40, 80, 65, 65, 82], repeatRows=2)
     detail_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 1), colors.white),
         ('TEXTCOLOR', (0, 0), (-1, 1), colors.black),
         ('FONTNAME', (0, 0), (-1, 1), bold_font_name),
-        ('FONTSIZE', (0, 0), (-1, -1), 6.5),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
         ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
         ('BOX', (0, 0), (-1, 1), 1.0, colors.black),
         ('LINEBELOW', (0, 1), (-1, 1), 1.0, colors.black),
@@ -2570,28 +2746,28 @@ def export_liquidation_report_pdf(request, report_id=None):
     elements.append(Spacer(1, 6))
 
     total = total_src
-    # Summary bar with Amount / WHT 5% / WHT 1% / Net Amount
-    wht_label_style = ParagraphStyle('WhtLabel', parent=styles['Normal'], fontSize=6.5, fontName=bold_font_name, textColor=colors.HexColor('#475569'), alignment=1)
+    # Summary bar with Amount / WHT 5% / WHT 1% / Net Amount - larger for elder
+    wht_label_style = ParagraphStyle('WhtLabel', parent=styles['Normal'], fontSize=9, fontName=bold_font_name, textColor=colors.HexColor('#475569'), alignment=1)
     summary_header = Table(
         [[Paragraph('', wht_label_style), Paragraph('Amount', wht_label_style), Paragraph('WHT 5%', wht_label_style), Paragraph('WHT 1%', wht_label_style), Paragraph('Net Amount', wht_label_style)]],
-        colWidths=[200, 83, 83, 83, 83]
+        colWidths=[172, 90, 90, 90, 90]
     )
     summary_header.setStyle(TableStyle([
         ('ALIGN', (1, 0), (-1, 0), 'RIGHT'),
-        ('FONTSIZE', (0, 0), (-1, -1), 6.5),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
         ('TOPPADDING', (0, 0), (-1, -1), 2),
     ]))
     elements.append(summary_header)
     summary_table = Table(
         [[Paragraph('TOTAL AMOUNT SPENT', total_style), Paragraph(f'{total_dec:,.2f}', amount_value_style), Paragraph(f'{total_wht5_src:,.2f}', amount_value_style), Paragraph(f'{total_wht1_src:,.2f}', amount_value_style), Paragraph(f'{total_net_src:,.2f}', amount_value_style)]],
-        colWidths=[200, 83, 83, 83, 83]
+        colWidths=[172, 90, 90, 90, 90]
     )
     summary_table.setStyle(TableStyle([
         ('LINEABOVE', (0, 0), (-1, 0), 1, colors.black),
         ('LINEBELOW', (0, 0), (-1, 0), 0.8, colors.black),
         ('ALIGN', (1, 0), (-1, 0), 'RIGHT'),
-        ('FONTSIZE', (0, 0), (-1, -1), 8),
+        ('FONTSIZE', (0, 0), (-1, -1), 11),
         ('TOPPADDING', (0, 0), (-1, -1), 4),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
         ('LEFTPADDING', (0, 0), (-1, -1), 4),
@@ -2601,45 +2777,78 @@ def export_liquidation_report_pdf(request, report_id=None):
     elements.append(summary_table)
     elements.append(Spacer(1, 4))
     # Explicit WHT breakdown + Net for liquidation compliance (Net = Amount - WHT5 - WHT1, where VAT: WHT = Amount/1.12*rate; Non-VAT: WHT = Amount*rate; e.g., VAT 1500 => 66.96+13.39=Net1419.65, Non-VAT 1500 =>75+15=Net1410)
-    wht_detail_style = ParagraphStyle('WhtDetail', parent=styles['Normal'], fontSize=8, fontName=font_name, leading=10)
-    wht_value_style = ParagraphStyle('WhtValue', parent=styles['Normal'], fontSize=8, fontName=bold_font_name, alignment=2)
-    net_label_style = ParagraphStyle('WhtNetLabel', parent=styles['Normal'], fontSize=8, fontName=bold_font_name, leading=10)
-    net_value_style = ParagraphStyle('WhtNetValue', parent=styles['Normal'], fontSize=8, fontName=bold_font_name, alignment=2, textColor=colors.HexColor('#0f172a'))
+    # Increased to 10pt for elder readability
+    wht_detail_style = ParagraphStyle('WhtDetail', parent=styles['Normal'], fontSize=10, fontName=font_name, leading=12)
+    wht_value_style = ParagraphStyle('WhtValue', parent=styles['Normal'], fontSize=10, fontName=bold_font_name, alignment=2)
+    net_label_style = ParagraphStyle('WhtNetLabel', parent=styles['Normal'], fontSize=10, fontName=bold_font_name, leading=12)
+    net_value_style = ParagraphStyle('WhtNetValue', parent=styles['Normal'], fontSize=11, fontName=bold_font_name, alignment=2, textColor=colors.HexColor('#0f172a'))
     wht_breakdown = Table(
         [
             [Paragraph('Less: Withholding Tax — 5%  (VAT: ÷1.12×5% / Non-VAT: —)', wht_detail_style), Paragraph(f'{total_wht5_src:,.2f}', wht_value_style)],
             [Paragraph('Less: Withholding Tax — 1%  (VAT: ÷1.12×1% / Non-VAT: —)', wht_detail_style), Paragraph(f'{total_wht1_src:,.2f}', wht_value_style)],
+            [Paragraph('<b>Total Withholding Tax (5% + 1%)</b>', net_label_style), Paragraph(f'<b>{total_wht_src:,.2f}</b>', net_value_style)],
             [Paragraph('Net Amount  (Amount − WHT 5% − WHT 1%)', net_label_style), Paragraph(f'{total_net_src:,.2f}', net_value_style)],
         ],
-        colWidths=[449, 83]
+        colWidths=[437, 95]
     )
     wht_breakdown.setStyle(TableStyle([
         ('GRID', (0, 0), (-1, -1), 0.4, colors.HexColor('#e2e8f0')),
-        ('BACKGROUND', (0, 0), (-1, 1), colors.HexColor('#fffbeb')),
-        ('BACKGROUND', (0, 2), (-1, 2), colors.HexColor('#ecfdf5')),
+        ('BACKGROUND', (0, 0), (-1, 2), colors.HexColor('#fffbeb')),
+        ('BACKGROUND', (0, 3), (-1, 3), colors.HexColor('#ecfdf5')),
+        ('LINEABOVE', (0, 2), (-1, 2), 0.6, colors.black),
         ('TOPPADDING', (0, 0), (-1, -1), 4),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
         ('LEFTPADDING', (0, 0), (-1, -1), 6),
         ('RIGHTPADDING', (0, 0), (-1, -1), 6),
     ]))
     elements.append(wht_breakdown)
-    elements.append(Spacer(1, 10))
+    elements.append(Spacer(1, 8))
+    # Unutilized Fund footer (Principal - Total Spent) and (Principal - Net) - for elder view larger 10pt
+    if principal_value_src:
+        unutil_style = ParagraphStyle('UnutilLabel', parent=styles['Normal'], fontSize=10, fontName=bold_font_name, leading=12, textColor=colors.HexColor('#0f172a'))
+        unutil_value_style = ParagraphStyle('UnutilValue', parent=styles['Normal'], fontSize=11, fontName=bold_font_name, alignment=2, textColor=colors.HexColor('#1e40af'))
+        unutil_detail_style = ParagraphStyle('UnutilDetail', parent=styles['Normal'], fontSize=9, fontName=font_name, leading=11, textColor=colors.HexColor('#475569'))
+        unutil_table = Table(
+            [
+                [Paragraph('Principal Amount (Cash Advance)', unutil_detail_style), Paragraph(f'₱{principal_dec:,.2f}', unutil_value_style)],
+                [Paragraph('Less: Total Amount Spent', unutil_detail_style), Paragraph(f'₱{total_dec:,.2f}', wht_value_style)],
+                [Paragraph('<b>Unutilized Fund (Principal − Total Spent)</b>', unutil_style), Paragraph(f'<b>₱{unutilized_src:,.2f}</b>', unutil_value_style)],
+                [Paragraph('Unutilized Fund (Principal − Net Amount)', unutil_detail_style), Paragraph(f'₱{unutilized_net_src:,.2f}', unutil_value_style)],
+            ],
+            colWidths=[437, 95]
+        )
+        unutil_table.setStyle(TableStyle([
+            ('GRID', (0, 0), (-1, -1), 0.4, colors.HexColor('#cbd5e1')),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#eff6ff')),
+            ('BACKGROUND', (0, 2), (-1, 2), colors.HexColor('#dbeafe')),
+            ('BACKGROUND', (0, 3), (-1, 3), colors.HexColor('#f0fdf4')),
+            ('TOPPADDING', (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+            ('LEFTPADDING', (0, 0), (-1, -1), 6),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+            ('LINEABOVE', (0, 2), (-1, 2), 0.8, colors.HexColor('#1e40af')),
+        ]))
+        elements.append(unutil_table)
+        elements.append(Spacer(1, 10))
 
     line_style = ParagraphStyle(
-        'LiqLine', parent=styles['Normal'], fontSize=9, fontName=font_name, leading=11
+        'LiqLine', parent=styles['Normal'], fontSize=11, fontName=font_name, leading=13
     )
     line_value_style = ParagraphStyle(
-        'LiqLineValue', parent=styles['Normal'], fontSize=9, fontName=bold_font_name, alignment=2, leading=11
+        'LiqLineValue', parent=styles['Normal'], fontSize=11, fontName=bold_font_name, alignment=2, leading=13
     )
     principal_display = f'₱{principal_value}' if principal_value else '—'
+    refund_display = f'₱{refund_value_src:,.2f}' if refund_value_src else '—'
+    reimbursed_display = f'₱{reimbursed_value_src:,.2f}' if reimbursed_value_src else '—'
     check_text = ('AMOUNT OF CASH ADVANCE PER DV CHECK # ' + check_number_src) if check_number_src else 'AMOUNT OF CASH ADVANCE PER DV CHECK # '
+    refund_label = f'AMOUNT REFUND PER OR #  {refund_or_number_src}' if refund_or_number_src else 'AMOUNT REFUND PER OR #'
     lines_table = Table(
         [
             [Paragraph(check_text, line_style), Paragraph(principal_display, line_value_style)],
-            [Paragraph('AMOUNT REFUND PER OR #', line_style), ''],
-            [Paragraph('AMOUNT REIMBURSED', line_style), ''],
+            [Paragraph(refund_label, line_style), Paragraph(refund_display, line_value_style)],
+            [Paragraph('AMOUNT REIMBURSED', line_style), Paragraph(reimbursed_display, line_value_style)],
         ],
-        colWidths=[430, 102]
+        colWidths=[410, 122]
     )
     lines_table.setStyle(TableStyle([
         ('LEFTPADDING', (0, 0), (-1, -1), 4),
@@ -2653,10 +2862,10 @@ def export_liquidation_report_pdf(request, report_id=None):
     elements.append(Spacer(1, 16))
 
     sig_style = ParagraphStyle(
-        'LiqSig', parent=styles['Normal'], fontSize=10, fontName=font_name, alignment=1
+        'LiqSig', parent=styles['Normal'], fontSize=11, fontName=font_name, alignment=1
     )
     sig_name_style = ParagraphStyle(
-        'LiqSigName', parent=styles['Normal'], fontSize=10, fontName=bold_font_name, alignment=1
+        'LiqSigName', parent=styles['Normal'], fontSize=12, fontName=bold_font_name, alignment=1
     )
     sig_data = [
         [Paragraph('Submitted by:', sig_style), Paragraph('Received by:', sig_style)],
@@ -2683,7 +2892,7 @@ def export_liquidation_report_pdf(request, report_id=None):
 # RER print: image on top + RER form at bottom on one A4
 # PCV print: separate A4
 # ──────────────────────────────────────────────────────────────
-from .models import PettyCashVoucher, ReimbursementExpenseReceipt
+from .models import PettyCashVoucher, ReimbursementExpenseReceipt, ReimbursementExpenseReceiptImage
 from .forms import PettyCashVoucherForm, ReimbursementExpenseReceiptForm
 
 
@@ -2746,7 +2955,7 @@ class RERListView(ListView):
     paginate_by = 20
 
     def get_queryset(self):
-        qs = super().get_queryset().select_related('petty_cash_voucher')
+        qs = super().get_queryset().select_related('petty_cash_voucher').prefetch_related('images')
         q = self.request.GET.get('q')
         if q:
             qs = qs.filter(received_from_name__icontains=q) | qs.filter(rer_no__icontains=q)
@@ -2758,6 +2967,79 @@ class RERDetailView(DetailView):
     template_name = 'fuel/rer_detail.html'
     context_object_name = 'receipt'
 
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        # Prefetch images for gallery
+        receipt = self.object
+        # Use get_gallery_images logic: prefer new images, fallback to legacy
+        images = list(receipt.images.all())
+        ctx['gallery_images'] = images
+        # also expose legacy fallback flag
+        ctx['has_legacy_image'] = bool(receipt.attached_image) and not images
+        return ctx
+
+
+# Helper: save multiple images for RER
+def _handle_rer_images(request, rer):
+    """
+    Handle deletion of existing gallery images (via checkboxes delete_image_<id>)
+    and creation of new uploads from 'new_images' (multiple).
+    Properly places images: files are kept with object-fit contain in grid,
+    and file deletion avoids removing shared files (e.g., migrated legacy copy).
+    """
+    # 1) Delete marked images
+    for key in list(request.POST.keys()):
+        if key.startswith('delete_image_'):
+            try:
+                img_id = int(key[len('delete_image_'):])
+                img = ReimbursementExpenseReceiptImage.objects.filter(pk=img_id, rer=rer).first()
+                if img:
+                    fname = img.image.name if img.image else None
+                    # Check if other gallery images or legacy share the same file
+                    shared = False
+                    if fname:
+                        if ReimbursementExpenseReceiptImage.objects.filter(image=fname).exclude(pk=img.pk).exists():
+                            shared = True
+                        if rer.attached_image and rer.attached_image.name == fname:
+                            shared = True
+                    if fname and not shared:
+                        try:
+                            img.image.delete(save=False)
+                        except Exception:
+                            pass
+                    img.delete()
+            except Exception:
+                continue
+    # Handle explicit 'clear_legacy' if legacy checkbox
+    if request.POST.get('clear_legacy_image') and rer.attached_image:
+        fname = rer.attached_image.name
+        # Don't delete file if still referenced by gallery
+        shared = False
+        if fname and ReimbursementExpenseReceiptImage.objects.filter(image=fname).exists():
+            shared = True
+        try:
+            if not shared and rer.attached_image:
+                rer.attached_image.delete(save=False)
+            rer.attached_image = None
+            rer.save(update_fields=['attached_image'])
+        except Exception:
+            try:
+                rer.attached_image = None
+                rer.save(update_fields=['attached_image'])
+            except Exception:
+                pass
+    # 2) Create new images
+    files = request.FILES.getlist('new_images')
+    if files:
+        max_order = rer.images.aggregate(models.Max('order'))['order__max'] or 0
+        for idx, f in enumerate(files):
+            # Basic validation: ensure it's an image (content_type starts with image/)
+            # Pillow will validate on save
+            try:
+                ReimbursementExpenseReceiptImage.objects.create(rer=rer, image=f, order=max_order + 1 + idx)
+            except Exception:
+                continue
+
 
 class RERCreateView(CreateView):
     model = ReimbursementExpenseReceipt
@@ -2767,7 +3049,10 @@ class RERCreateView(CreateView):
 
     def form_valid(self, form):
         try:
-            return super().form_valid(form)
+            resp = super().form_valid(form)
+            # After saving, handle multi-image uploads
+            _handle_rer_images(self.request, self.object)
+            return resp
         except ValidationError as e:
             form.add_error(None, e)
             return self.form_invalid(form)
@@ -2779,9 +3064,18 @@ class RERUpdateView(UpdateView):
     template_name = 'fuel/rer_form.html'
     success_url = reverse_lazy('rer_list')
 
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        # Provide gallery images for edit preview
+        if self.object:
+            ctx['gallery_images'] = list(self.object.images.all())
+        return ctx
+
     def form_valid(self, form):
         try:
-            return super().form_valid(form)
+            resp = super().form_valid(form)
+            _handle_rer_images(self.request, self.object)
+            return resp
         except ValidationError as e:
             form.add_error(None, e)
             return self.form_invalid(form)
@@ -2794,9 +3088,384 @@ class RERDeleteView(DeleteView):
 
 
 def rer_print_view(request, pk):
-    """Print: image on top (approx 45% of A4) + RER form on bottom (55%). No extra pages."""
-    receipt = get_object_or_404(ReimbursementExpenseReceipt.objects.select_related('petty_cash_voucher'), pk=pk)
-    return render(request, 'fuel/rer_print.html', {'receipt': receipt})
+    """Print: gallery images on top (responsive grid, properly placed) + RER form at bottom, one A4 portrait.
+    Supports multiple images (1–N). Single legacy image fallback if no gallery images.
+    """
+    receipt = get_object_or_404(
+        ReimbursementExpenseReceipt.objects.select_related('petty_cash_voucher').prefetch_related('images'),
+        pk=pk
+    )
+    images = list(receipt.images.all())
+    has_legacy = bool(receipt.attached_image) and not images
+    context = {
+        'receipt': receipt,
+        'gallery_images': images,
+        'has_legacy_image': has_legacy,
+        'gallery_count': len(images) if images else (1 if has_legacy else 0),
+    }
+    return render(request, 'fuel/rer_print.html', context)
+
+
+def export_rer_pdf(request, pk):
+    """Export RER as PDF with multiple images properly placed on top + RER form at bottom.
+    Images are laid out in a responsive grid (object-fit contain, no stretch) and
+    the RER form is rendered below. Works with gallery (new) or legacy single image.
+    """
+    if not PDF_SUPPORT:
+        return HttpResponse("PDF export is not available. Please install reportlab library.", content_type="text/plain")
+
+    receipt = get_object_or_404(
+        ReimbursementExpenseReceipt.objects.select_related('petty_cash_voucher').prefetch_related('images'),
+        pk=pk
+    )
+    images_qs = list(receipt.images.all())
+    # Build list of (path, or None) for gallery
+    image_paths = []
+    if images_qs:
+        for img in images_qs:
+            try:
+                p = img.image.path
+                image_paths.append(p)
+            except Exception:
+                # fallback to url or skip
+                image_paths.append(None)
+    elif receipt.attached_image:
+        try:
+            image_paths = [receipt.attached_image.path]
+        except Exception:
+            image_paths = []
+    else:
+        image_paths = []
+
+    response = HttpResponse(content_type='application/pdf')
+    fname = f"RER_{receipt.rer_no or receipt.pk}.pdf"
+    response['Content-Disposition'] = f'inline; filename="{fname}"'
+
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import mm
+    from reportlab.platypus import Image as PlatImage
+    from PIL import Image as PilImage
+    import os
+
+    # Font registration (for peso sign etc.)
+    font_name = 'Helvetica'
+    bold_font_name = 'Helvetica-Bold'
+    try:
+        from reportlab.pdfbase import pdfmetrics
+        from reportlab.pdfbase.ttfonts import TTFont
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        project_dir = os.path.dirname(current_dir)
+        fonts_dir = os.path.join(project_dir, 'fonts', 'ttf')
+        dejavu_path = os.path.join(fonts_dir, 'DejaVuSans.ttf')
+        dejavu_bold_path = os.path.join(fonts_dir, 'DejaVuSans-Bold.ttf')
+        if os.path.exists(dejavu_path):
+            pdfmetrics.registerFont(TTFont('DejaVuSans', dejavu_path))
+            if os.path.exists(dejavu_bold_path):
+                pdfmetrics.registerFont(TTFont('DejaVuSans-Bold', dejavu_bold_path))
+                bold_font_name = 'DejaVuSans-Bold'
+            else:
+                bold_font_name = 'DejaVuSans'
+            font_name = 'DejaVuSans'
+    except Exception:
+        font_name = 'Helvetica'
+        bold_font_name = 'Helvetica-Bold'
+
+    doc = SimpleDocTemplate(
+        response,
+        pagesize=A4,
+        rightMargin=10*mm,
+        leftMargin=10*mm,
+        topMargin=8*mm,
+        bottomMargin=8*mm,
+        title=f"RER {receipt.rer_no or receipt.pk}"
+    )
+
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle('RERTitle', parent=styles['Normal'], fontName=bold_font_name, fontSize=11, alignment=1, textColor=colors.black, spaceAfter=4)
+    subtitle_style = ParagraphStyle('RERSub', parent=styles['Normal'], fontName=font_name, fontSize=7, alignment=1, textColor=colors.HexColor('#475569'), spaceAfter=6)
+    field_style = ParagraphStyle('RERField', parent=styles['Normal'], fontName=font_name, fontSize=7, leading=9, textColor=colors.black)
+    field_b = ParagraphStyle('RERFieldB', parent=field_style, fontName=bold_font_name)
+    small_ital = ParagraphStyle('RERSmallItal', parent=styles['Normal'], fontName=font_name, fontSize=5.5, textColor=colors.HexColor('#334155'), alignment=1, leading=7)
+    pay_head_style = ParagraphStyle('RERPayHead', parent=styles['Normal'], fontName=bold_font_name, fontSize=7, alignment=1, textColor=colors.black, leading=8)
+    ul_style = ParagraphStyle('RERUL', parent=styles['Normal'], fontName=font_name, fontSize=7, leading=9)
+    header_label = ParagraphStyle('RERHL', parent=styles['Normal'], fontName=bold_font_name, fontSize=6.5, textColor=colors.black, leading=8)
+    peso = "\u20B1"
+
+    elements = []
+
+    # Header
+    elements.append(Paragraph("REIMBURSEMENT EXPENSE RECEIPT", title_style))
+    if receipt.rer_no:
+        elements.append(Paragraph(f"RER No. {receipt.rer_no} &nbsp;&bull;&nbsp; {receipt.receipt_date.strftime('%m/%d/%Y')}", subtitle_style))
+    else:
+        elements.append(Paragraph(f"Date: {receipt.receipt_date.strftime('%m/%d/%Y')}", subtitle_style))
+
+    # Helper to get scaled platypus image
+    def make_image_flowable(img_path, max_w_pt, max_h_pt):
+        if not img_path or not os.path.exists(img_path):
+            return Paragraph('<i>No image</i>', field_style)
+        try:
+            with PilImage.open(img_path) as im:
+                w, h = im.size
+            # avoid division by zero
+            if w == 0 or h == 0:
+                return Paragraph('<i>Invalid image</i>', field_style)
+            scale = min(max_w_pt / w, max_h_pt / h, 1.0)
+            # also allow upscale a bit? cap at 1.0 to not upscale beyond original? But for small images we may want to upscale to fill.
+            # If image is smaller than max, we can upscale slightly to fill better: allow up to max.
+            # So compute scale as min(max_w/w, max_h/h)
+            # Actually we want to fit inside box, so use that.
+            # For better quality, if original is small, we still fit.
+            # Recompute with no cap? Let's allow scale>1 but keep proportion.
+            # We'll use direct min without cap 1 to allow upscale? For print we want contain not stretch bigger than box.
+            scale = min(max_w_pt / w, max_h_pt / h)
+            # Ensure not too large (scale up to maybe 1.5?)
+            new_w = w * scale
+            new_h = h * scale
+            # Clip to max
+            new_w = min(new_w, max_w_pt)
+            new_h = min(new_h, max_h_pt)
+            img = PlatImage(img_path, width=new_w, height=new_h)
+            img.hAlign = 'CENTER'
+            img.vAlign = 'MIDDLE'
+            # Preserve aspect via width/height set
+            return img
+        except Exception as e:
+            return Paragraph(f'<i>Image error</i>', field_style)
+
+    # Gallery grid
+    n = len(image_paths)
+    if n > 0:
+        # Determine columns and cell max sizes (in points)
+        if n == 1:
+            cols = 1
+            max_w, max_h = 260, 220  # ~92x78mm single centered
+            gallery_w = max_w + 16  # outer border padding
+        elif n == 2:
+            cols = 2
+            max_w, max_h = 238, 170
+            gallery_w = 482  # 170mm
+        elif n <= 4:
+            cols = 2
+            max_w, max_h = 238, 165
+            gallery_w = 482
+        else:
+            cols = 3
+            max_w, max_h = 156, 150
+            gallery_w = 484
+
+        # Build table data row-wise
+        # Use gutter 6pt between cols, 6pt between rows via table padding
+        # Create flowables for each image
+        flows = [make_image_flowable(p, max_w, max_h) for p in image_paths]
+
+        # Chunk into rows
+        rows = []
+        for i in range(0, len(flows), cols):
+            chunk = flows[i:i+cols]
+            # Pad to cols length with empty spacer
+            while len(chunk) < cols:
+                chunk.append(Paragraph('', field_style))
+            # For last row with single item and cols>1 and n % cols ==1, span logic: center it
+            # We'll detect and apply SPAN via table style later
+            rows.append(chunk)
+
+        col_widths = []
+        gutter = 6
+        usable = gallery_w - gutter * (cols - 1)
+        cw = usable / cols
+        col_widths = [cw] * cols
+        if n == 1:
+            # single image bigger cell with border, centered in page
+            gal_table = Table(rows, colWidths=col_widths, hAlign='CENTER')
+        else:
+            gal_table = Table(rows, colWidths=col_widths, hAlign='CENTER')
+
+        # Style for gallery: each cell has border 0.8pt, background white, padding 3, align center, valign middle
+        gstyle = TableStyle([
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('GRID', (0, 0), (-1, -1), 0.6, colors.black),
+            ('BACKGROUND', (0, 0), (-1, -1), colors.white),
+            ('TOPPADDING', (0, 0), (-1, -1), 3),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+            ('LEFTPADDING', (0, 0), (-1, -1), 3),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 3),
+            ('ROWBACKGROUNDS', (0, 0), (-1, -1), [colors.white]),
+        ])
+        # If last row has empty placeholders, we could hide their grid? But keep grid; placeholders will be empty but bordered. Better to hide border for empty placeholders.
+        # Instead we can keep; it's okay.
+        # For single-item last row with colspan=cols, span to center
+        if len(rows) > 0 and n % cols == 1 and n != 1 and cols > 1:
+            last_row_idx = len(rows) - 1
+            # Span last row's first cell across all cols
+            gstyle.add('SPAN', (0, last_row_idx), (-1, last_row_idx))
+            # Also center - already center
+            # Empty cells in that row after span are ignored, but we padded them, so they are merged.
+        gal_table.setStyle(gstyle)
+        # Wrap gallery in a bordered container with white background, centered
+        # Add a little spacing above/below
+        elements.append(gal_table)
+        elements.append(Spacer(1, 4*mm))
+    else:
+        # No images placeholder
+        ph_style = ParagraphStyle('PH', parent=styles['Normal'], fontName=font_name, fontSize=7, textColor=colors.HexColor('#64748b'), alignment=1, borderWidth=0.5, borderColor=colors.HexColor('#cbd5e1'), backColor=colors.HexColor('#f8fafc'), leading=9)
+        # Use a table with dashed style simulation (using grid grey)
+        ph_table = Table([[Paragraph('No image attached — upload images when creating/editing the RER; they will appear here on top when exported.', ph_style)]], colWidths=[460], hAlign='CENTER')
+        ph_table.setStyle(TableStyle([
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cbd5e1')),
+            ('TOPPADDING', (0, 0), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+            ('LEFTPADDING', (0, 0), (-1, -1), 8),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f8fafc')),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ]))
+        elements.append(ph_table)
+        elements.append(Spacer(1, 4*mm))
+
+    # RER Form — centered 88.9mm (252pt) width, like HTML index card, but allow slightly larger for PDF readability 290pt (~102mm)
+    # Keep 3.5" = 252pt exactly for faithful replica, but we use 270pt for slightly more room
+    rer_width = 252  # 88.9mm
+    # If no images, we use same width centered; else form centered below gallery
+
+    # Build header table (entity/fund | date/rer)
+    header_data = [
+        [Paragraph(f"Entity Name: <b>{receipt.entity_name or ''}</b>", field_style),
+         Paragraph(f"Fund Cluster: <b>{receipt.fund_cluster or ''}</b>", field_style)],
+        [Paragraph(f"Date: <b>{receipt.receipt_date.strftime('%m/%d/%Y')}</b>", field_style),
+         Paragraph(f"RER No. <b>{receipt.rer_no or ''}</b>", field_style)],
+    ]
+    header_tbl = Table(header_data, colWidths=[rer_width/2, rer_width/2], hAlign='CENTER')
+    header_tbl.setStyle(TableStyle([
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+        ('TOPPADDING', (0, 0), (-1, -1), 3),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ('LEFTPADDING', (0, 0), (-1, -1), 4),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+    ]))
+
+    # Body paragraphs - use Paragraph with underlines via <u> tag simulated by font underline? ReportLab Paragraph supports <u>
+    # We'll compose lines with values underlined
+    def ul(val, min_w=40):
+        # Return Paragraph with underline if val else empty underline placeholder
+        # Use <u>&nbsp;&nbsp;val&nbsp;&nbsp;</u> but for empty use underscores
+        safe = val or ''
+        if safe:
+            # escape?
+            import html as _html
+            safe = _html.escape(str(safe))
+            return f"<u> {safe} </u>"
+        else:
+            return "<u>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</u>"
+
+    # Build body as list of Paragraphs inside a Table single column with no grid but line separators?
+    body_items = []
+    body_items.append([Paragraph(f"RECEIVED from {ul(receipt.received_from_name or '', 50)} (Name) {ul(receipt.received_from_designation or '', 40)} (Official Designation) the amount of", field_style)])
+    body_items.append([Paragraph(f"{ul(receipt.amount_in_words or '', 90)} (In Words) {peso} {ul(f'{receipt.amount_in_figures:.2f}' if receipt.amount_in_figures else '', 35)} (In Figures)", field_style)])
+    body_items.append([Paragraph(f"of {ul(receipt.amount_in_words or '', 120)} (In Words)", field_style)])
+    body_items.append([Paragraph(f"in payment for {ul(receipt.in_payment_for or '', 130)}", field_style)])
+    body_items.append([Paragraph("(Payments for subsistence, services, etc.)", small_ital)])
+    body_items.append([Paragraph("rental or transportation should show inclusive dates,", small_ital)])
+    body_items.append([Paragraph("purpose, distance, inclusive points of travel, etc.)", small_ital)])
+
+    body_tbl = Table(body_items, colWidths=[rer_width], hAlign='CENTER')
+    body_tbl.setStyle(TableStyle([
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 1),
+        ('LEFTPADDING', (0, 0), (-1, -1), 4),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+    ]))
+
+    # Payee section
+    payee_data = [
+        [Paragraph("Payee", pay_head_style)],
+        [Paragraph(f"Signature: {ul('', 100)}", ul_style)],
+        [Paragraph(f"Name: {ul(receipt.payee_signature_name or '', 100)}", ul_style)],
+        [Paragraph(f"Address: {ul(receipt.payee_address or '', 100)}", ul_style)],
+        [Paragraph(f"Residence Cert No.: {ul(receipt.payee_residence_cert_no or '', 90)}", ul_style)],
+        [Paragraph(f"Date of Issue: {ul(receipt.payee_residence_date.strftime('%m/%d/%Y') if receipt.payee_residence_date else '', 80)}", ul_style)],
+        [Paragraph(f"Place of Issue: {ul(receipt.payee_residence_place or '', 80)}", ul_style)],
+    ]
+    payee_tbl = Table(payee_data, colWidths=[rer_width], hAlign='CENTER')
+    payee_tbl.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f8fafc')),
+        ('LINEBELOW', (0, 0), (-1, 0), 0.8, colors.black),
+        ('GRID', (0, 0), (-1, -1), 0.4, colors.black),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+        ('LEFTPADDING', (0, 0), (-1, -1), 4),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+    ]))
+
+    # Witness section
+    wit_data = [
+        [Paragraph("Witness", pay_head_style)],
+        [Paragraph(f"Signature: {ul('', 100)}", ul_style)],
+        [Paragraph(f"Name: {ul(receipt.witness_signature_name or '', 100)}", ul_style)],
+        [Paragraph(f"Address: {ul(receipt.witness_address or '', 100)}", ul_style)],
+        [Paragraph(f"Residence Cert No.: {ul(receipt.witness_residence_cert_no or '', 90)}", ul_style)],
+        [Paragraph(f"Date of Issue: {ul(receipt.witness_residence_date.strftime('%m/%d/%Y') if receipt.witness_residence_date else '', 80)}", ul_style)],
+        [Paragraph(f"Place of Issue: {ul(receipt.witness_residence_place or '', 80)}", ul_style)],
+    ]
+    wit_tbl = Table(wit_data, colWidths=[rer_width], hAlign='CENTER')
+    wit_tbl.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f8fafc')),
+        ('LINEBELOW', (0, 0), (-1, 0), 0.8, colors.black),
+        ('GRID', (0, 0), (-1, -1), 0.4, colors.black),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+        ('LEFTPADDING', (0, 0), (-1, -1), 4),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+    ]))
+
+    # Outer RER container
+    outer_data = [
+        [Paragraph("Reimbursement Expense Receipt", ParagraphStyle('OuterTitle', parent=field_b, fontSize=8, alignment=1, leading=10))],
+        [header_tbl],
+        [body_tbl],
+        [payee_tbl],
+        [wit_tbl],
+    ]
+    outer_table = Table(outer_data, colWidths=[rer_width], hAlign='CENTER')
+    outer_table.setStyle(TableStyle([
+        ('BOX', (0, 0), (-1, -1), 1.2, colors.black),
+        ('LINEBELOW', (0, 0), (-1, 0), 1.0, colors.black),
+        ('LINEBELOW', (0, 1), (-1, 1), 0.6, colors.black),
+        ('TOPPADDING', (0, 0), (-1, -1), 0),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+    ]))
+
+    # Wrap outer table in a centered container to keep 3.5" width centered on A4
+    # Doc width is ~523pt, rer_width 252, so we create container table 523 width with rer centered
+    container = Table([[outer_table]], colWidths=[523], hAlign='CENTER')
+    container.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ('TOPPADDING', (0, 0), (-1, -1), 0),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+    ]))
+
+    elements.append(container)
+
+    if receipt.petty_cash_voucher:
+        elements.append(Spacer(1, 3*mm))
+        pcv = receipt.petty_cash_voucher
+        elements.append(Paragraph(f"— Attached to PCV No. {pcv.voucher_no or pcv.pk} (separate A4 print via PCV) —", ParagraphStyle('PCVNote', parent=field_style, fontSize=6, textColor=colors.HexColor('#475569'), alignment=1)))
+
+    doc.build(elements)
+    return response
 
 def rer_pcv_combined_print_view(request, pk):
     """Combined print for RER + its linked PCV (or standalone) — PCV is separate A4 attachment.
