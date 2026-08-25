@@ -1,7 +1,7 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView, DetailView
 from django.urls import reverse_lazy, reverse
-from django.db.models import Sum, Max
+from django.db.models import Sum, Max, Q
 from django.db import models
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_GET
@@ -2901,6 +2901,111 @@ class PettyCashVoucherListView(ListView):
     template_name = 'fuel/pcv_list.html'
     context_object_name = 'vouchers'
     paginate_by = 20
+
+    def get_queryset(self):
+        qs = PettyCashVoucher.objects.all()
+        # --- Comprehensive search ---
+        q = self.request.GET.get('q', '').strip()
+        voucher_no = self.request.GET.get('voucher_no', '').strip()
+        date_from = self.request.GET.get('date_from', '').strip()
+        date_to = self.request.GET.get('date_to', '').strip()
+        amount_min = self.request.GET.get('amount_min', '').strip()
+        amount_max = self.request.GET.get('amount_max', '').strip()
+        supplier = self.request.GET.get('supplier', '').strip()
+        or_no = self.request.GET.get('or_no', '').strip()
+        fund = self.request.GET.get('fund', '').strip()
+        status = self.request.GET.get('status', '').strip()
+        sort = self.request.GET.get('sort', '').strip()
+
+        if q:
+            qs = qs.filter(
+                Q(voucher_no__icontains=q) |
+                Q(particulars__icontains=q) |
+                Q(purpose__icontains=q) |
+                Q(payee_office__icontains=q) |
+                Q(or_invoice_no__icontains=q) |
+                Q(requested_by_name__icontains=q) |
+                Q(paid_by_name__icontains=q) |
+                Q(cash_received_by_name__icontains=q) |
+                Q(reimbursement_received_by__icontains=q) |
+                Q(fund__icontains=q) |
+                Q(fpp__icontains=q) |
+                Q(address__icontains=q)
+            )
+        if voucher_no:
+            qs = qs.filter(voucher_no__icontains=voucher_no)
+        if supplier:
+            # Search supplier across particulars, purpose and payee
+            qs = qs.filter(
+                Q(particulars__icontains=supplier) |
+                Q(purpose__icontains=supplier) |
+                Q(payee_office__icontains=supplier) |
+                Q(or_invoice_no__icontains=supplier)
+            )
+        if or_no:
+            qs = qs.filter(or_invoice_no__icontains=or_no)
+        if fund:
+            qs = qs.filter(fund__icontains=fund)
+        if date_from:
+            try:
+                qs = qs.filter(voucher_date__gte=date_from)
+            except Exception:
+                pass
+        if date_to:
+            try:
+                qs = qs.filter(voucher_date__lte=date_to)
+            except Exception:
+                pass
+        if amount_min:
+            try:
+                qs = qs.filter(amount__gte=Decimal(amount_min.replace(',', '').replace('₱','')))
+            except Exception:
+                pass
+        if amount_max:
+            try:
+                qs = qs.filter(amount__lte=Decimal(amount_max.replace(',', '').replace('₱','')))
+            except Exception:
+                pass
+        if status == 'liquidated':
+            qs = qs.filter(liquidation_submitted=True)
+        elif status == 'reimbursed':
+            qs = qs.filter(reimbursement_paid=True)
+        elif status == 'pending':
+            qs = qs.filter(liquidation_submitted=False, reimbursement_paid=False)
+        elif status == 'refunded':
+            qs = qs.filter(received_refund=True)
+
+        # Sorting for elder-friendly amount/date views
+        if sort == 'amount_asc':
+            qs = qs.order_by('amount', '-voucher_date', '-id')
+        elif sort == 'amount_desc':
+            qs = qs.order_by('-amount', '-voucher_date', '-id')
+        elif sort == 'date_asc':
+            qs = qs.order_by('voucher_date', 'id')
+        elif sort == 'no_asc':
+            qs = qs.order_by('voucher_no')
+        elif sort == 'no_desc':
+            qs = qs.order_by('-voucher_no')
+        else:
+            qs = qs.order_by('-voucher_date', '-id')
+        return qs
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        # For filter dropdowns and preserving query
+        ctx['funds'] = PettyCashVoucher.objects.exclude(fund='').values_list('fund', flat=True).distinct().order_by('fund')
+        # Keep query string without page for pagination
+        params = self.request.GET.copy()
+        params.pop('page', None)
+        ctx['query_string'] = params.urlencode()
+        # Total and filtered counts
+        ctx['total_count'] = PettyCashVoucher.objects.count()
+        # Use paginator count for filtered
+        try:
+            ctx['filtered_count'] = self.get_queryset().count()
+        except Exception:
+            ctx['filtered_count'] = ctx['total_count']
+        return ctx
 
 
 class PettyCashVoucherDetailView(DetailView):

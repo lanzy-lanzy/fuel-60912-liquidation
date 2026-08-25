@@ -34,3 +34,6 @@ bash.exe.stackdump
 
 # But keep db.sqlite3 as requested - do not ignore it
 !db.sqlite3
+
+.vercel
+.env*
