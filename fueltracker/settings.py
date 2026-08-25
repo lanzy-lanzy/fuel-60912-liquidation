@@ -98,18 +98,28 @@ WSGI_APPLICATION = 'fueltracker.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 # Use Supabase Postgres when DATABASE_URL is set (Vercel + Supabase), else SQLite for local
+# On Vercel, filesystem is read-only except /tmp, so use /tmp/db.sqlite3 and copy from repo if needed
 DATABASE_URL = os.environ.get('DATABASE_URL')
 if DATABASE_URL:
     DATABASES = {
         'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600, ssl_require=True)
     }
 else:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
+    # On Vercel, use /tmp for writable SQLite
+    if os.environ.get('VERCEL'):
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.sqlite3',
+                'NAME': Path('/tmp/db.sqlite3'),
+            }
         }
-    }
+    else:
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.sqlite3',
+                'NAME': BASE_DIR / 'db.sqlite3',
+            }
+        }
 # Supabase direct URL fallback (optional)
 SUPABASE_DB_URL = os.environ.get('SUPABASE_DB_URL')
 if SUPABASE_DB_URL and not DATABASE_URL:
@@ -175,7 +185,12 @@ if 'fuel' not in INSTALLED_APPS:
     INSTALLED_APPS.append('fuel')
 
 MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+# On Vercel, use /tmp/media for writable uploads (filesystem is read-only except /tmp)
+if os.environ.get('VERCEL'):
+    MEDIA_ROOT = Path('/tmp/media')
+    # Ensure /tmp/media exists at startup (handled in wsgi.py as well)
+else:
+    MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # Trust Vercel/Supabase proxy
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
