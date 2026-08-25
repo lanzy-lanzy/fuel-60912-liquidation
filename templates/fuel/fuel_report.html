@@ -1,44 +1,52 @@
+
 {% extends "base.html" %}
-
+{% load humanize %}
+{% block title %}Fuel Report — FuelTrack{% endblock %}
 {% block content %}
-<div class="mb-8">
-    <h2 class="text-2xl font-bold mb-4">Fuel Consumption Report</h2>
-    
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div class="bg-white p-4 rounded-lg shadow">
-            <h3 class="text-gray-500 text-sm">Remaining Days</h3>
-            <p class="text-2xl font-bold text-blue-600">{{ remaining_days }}</p>
-        </div>
-        <div class="bg-white p-4 rounded-lg shadow">
-            <h3 class="text-gray-500 text-sm">Avg Daily Use</h3>
-            <p class="text-2xl font-bold text-green-600">{{ avg_daily }}L</p>
-        </div>
-        <div class="bg-white p-4 rounded-lg shadow">
-            <h3 class="text-gray-500 text-sm">Projected Use</h3>
-            <p class="text-2xl font-bold text-purple-600">{{ projected_use }}L</p>
-        </div>
+<div class="rounded-2xl bg-gradient-to-br from-slate-900 to-blue-900 p-[1px] shadow-card">
+    <div class="rounded-[15px] bg-slate-900 p-6 text-white">
+        <h1 class="text-2xl font-black tracking-tight">Fuel Consumption Report</h1>
+        <p class="text-sm text-blue-100/70">Weekly breakdown • projection • remaining days</p>
     </div>
+</div>
 
-    <h3 class="text-xl font-bold mb-4">Weekly Breakdown</h3>
-    <div class="bg-white rounded-lg shadow overflow-hidden">
-        <table class="w-full">
-            <thead class="bg-gray-50">
-                <tr>
-                    <th class="px-4 py-2 text-left">Week Starting</th>
-                    <th class="px-4 py-2 text-left">Total Liters</th>
-                    <th class="px-4 py-2 text-left">Total Cost</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for week in weekly_report %}
-                <tr class="border-t hover:bg-gray-50">
-                    <td class="px-4 py-2">{{ week.week_start|date:"M d" }}</td>
-                    <td class="px-4 py-2 text-blue-600">{{ week.total_liters }}L</td>
-                    <td class="px-4 py-2 text-green-600">₱{{ week.total_cost }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+<div class="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
+        <p class="text-[11px] font-bold tracking-widest text-slate-400 uppercase">Remaining Days</p>
+        <p class="mt-2 text-3xl font-black text-slate-900">{{ remaining_days|intcomma }}</p>
+        <p class="text-xs text-slate-500">Until period end</p>
     </div>
+    <div class="rounded-2xl border border-blue-200 bg-white p-5 shadow-soft">
+        <p class="text-[11px] font-bold tracking-widest text-blue-600 uppercase">Avg Daily Use</p>
+        <p class="mt-2 text-3xl font-black text-blue-700">{{ avg_daily|floatformat:2|intcomma }}<span class="text-base font-semibold text-slate-500"> L</span></p>
+        <div class="mt-2 h-1.5 rounded-full bg-slate-100 overflow-hidden"><div class="h-full w-[45%] bg-blue-600"></div></div>
+    </div>
+    <div class="rounded-2xl border border-violet-200 bg-white p-5 shadow-soft">
+        <p class="text-[11px] font-bold tracking-widest text-violet-600 uppercase">Projected Use</p>
+        <p class="mt-2 text-3xl font-black text-violet-700">{{ projected_use|floatformat:2|intcomma }}<span class="text-base font-semibold text-slate-500"> L</span></p>
+        <p class="text-xs text-slate-500">Based on current avg</p>
+    </div>
+</div>
+
+<div class="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft">
+    <div class="border-b border-slate-100 px-5 py-4">
+        <h2 class="text-sm font-black uppercase">Weekly Breakdown</h2>
+    </div>
+    <table class="w-full text-sm">
+        <thead class="bg-slate-50 text-[11px] font-bold tracking-widest text-slate-500 uppercase">
+            <tr><th class="px-4 py-3 text-left">Week Starting</th><th class="px-4 py-3 text-right">Total Liters</th><th class="px-4 py-3 text-right">Total Cost</th></tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+            {% for week in weekly_report %}
+            <tr class="hover:bg-slate-50">
+                <td class="px-4 py-3 font-mono text-xs font-semibold">{{ week.week_start|date:"M d, Y" }}</td>
+                <td class="px-4 py-3 text-right font-mono font-bold text-blue-700">{{ week.total_liters|floatformat:2|intcomma }}L</td>
+                <td class="px-4 py-3 text-right font-mono">₱{{ week.total_cost|floatformat:2|intcomma }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="3" class="px-6 py-10 text-center text-slate-500">No weekly data.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
 </div>
 {% endblock %}

@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}{% if object %}Edit PCV{% else %}New PCV{% endif %} — FuelTrack{% endblock %}
+{% block extra_head %}
+<style>.form-control{width:100%;border-radius:0.75rem;border:1px solid #e2e8f0;background:#f8fafc;padding:0.7rem 0.9rem;font-size:0.9rem;font-weight:500} .form-control:focus{outline:none;border-color:#2563eb;background:#fff;box-shadow:0 0 0 4px rgba(37,99,235,.1)}</style>
+{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-4xl">
+    <a href="{% url 'pcv_list' %}" class="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900">← Back to PCV</a>
+    <div class="mt-4 rounded-[20px] bg-slate-900 p-6 text-white">
+        <p class="inline-flex rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-bold tracking-widest uppercase">MDRRMO • Petty Cash</p>
+        <h1 class="mt-3 text-2xl font-black tracking-tight">{% if object %}Edit Voucher #{{ object.voucher_no|default:object.pk }}{% else %}New Petty Cash Voucher{% endif %}</h1>
+        <p class="text-sm text-blue-100/70 mt-1">Separate from fuel — Fills Part I (request) and Part II (liquidation). Prints exact A4 PCV.</p>
+    </div>
+
+    <div class="mt-6 rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-soft">
+        <form method="post" novalidate class="space-y-6">
+            {% csrf_token %}
+            {% if form.non_field_errors %}<div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{{ form.non_field_errors }}</div>{% endif %}
+
+            <!-- Header -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="space-y-1.5"><label class="text-[11px] font-bold tracking-widest text-slate-500 uppercase">No.</label>{{ form.voucher_no }}{% if form.voucher_no.errors %}<p class="text-xs text-red-600">{{ form.voucher_no.errors.0 }}</p>{% endif %}</div>
+                <div class="space-y-1.5"><label class="text-[11px] font-bold tracking-widest text-slate-500 uppercase">Date</label>{{ form.voucher_date }}{% if form.voucher_date.errors %}<p class="text-xs text-red-600">{{ form.voucher_date.errors.0 }}</p>{% endif %}</div>
+                <div class="space-y-1.5"><label class="text-[11px] font-bold tracking-widest text-slate-500 uppercase">FPP</label>{{ form.fpp }}{% if form.fpp.errors %}<p class="text-xs text-red-600">{{ form.fpp.errors.0 }}</p>{% endif %}</div>
+                <div class="space-y-1.5"><label class="text-[11px] font-bold tracking-widest text-slate-500 uppercase">Fund</label>{{ form.fund }}</div>
+                <div class="space-y-1.5"><label class="text-[11px] font-bold tracking-widest text-slate-500 uppercase">Payee/Office</label>{{ form.payee_office }}</div>
+                <div class="space-y-1.5"><label class="text-[11px] font-bold tracking-widest text-slate-500 uppercase">Address</label>{{ form.address }}</div>
+            </div>
+
+            <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="space-y-1.5"><label class="text-[11px] font-bold tracking-widest text-slate-500 uppercase">Particulars</label>{{ form.particulars }}</div>
+                <div class="space-y-1.5"><label class="text-[11px] font-bold tracking-widest text-slate-500 uppercase">Amount (₱)</label>{{ form.amount }}</div>
+                <div class="sm:col-span-2 space-y-1.5"><label class="text-[11px] font-bold tracking-widest text-slate-500 uppercase">Purpose</label>{{ form.purpose }}</div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="space-y-1.5"><label class="text-[11px] font-bold tracking-widest text-slate-500 uppercase">Requested by</label>{{ form.requested_by_name }}</div>
+                <div class="space-y-1.5"><label class="text-[11px] font-bold tracking-widest text-slate-500 uppercase">Approved by (Immediate Supervisor)</label>{{ form.approved_by_name }}</div>
+                <div class="space-y-1.5"><label class="text-[11px] font-bold tracking-widest text-slate-500 uppercase">Paid by (Custodian)</label>{{ form.paid_by_name }}</div>
+                <div class="space-y-1.5"><label class="text-[11px] font-bold tracking-widest text-slate-500 uppercase">Cash Received by (Payee)</label>{{ form.cash_received_by_name }}</div>
+            </div>
+
+            <div class="rounded-xl border border-amber-200 bg-amber-50/50 p-4">
+                <p class="text-[11px] font-bold tracking-widest text-amber-800 uppercase">II. To be filled out upon liquidation</p>
+                <div class="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div class="space-y-1.5"><label class="text-xs font-semibold text-slate-700">Total Amount Granted</label>{{ form.total_amount_granted }}</div>
+                    <div class="space-y-1.5"><label class="text-xs font-semibold text-slate-700">Total Amount Paid per OR / Invoice No.</label>{{ form.or_invoice_no }}{{ form.total_amount_paid_per_or }}</div>
+                    <div class="space-y-1.5"><label class="text-xs font-semibold text-slate-700">Amount Refunded / (Reimbursed)</label>{{ form.amount_refunded }}</div>
+                </div>
+                <div class="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+                    <label class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2">{{ form.received_refund }} Received Refund</label>
+                    <label class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2">{{ form.reimbursement_paid }} Reimbursement Paid</label>
+                    <label class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2">{{ form.liquidation_submitted }} Liquidation Submitted</label>
+                </div>
+                <div class="mt-3 space-y-1.5"><label class="text-xs font-semibold text-slate-700">Reimbursement Received by</label>{{ form.reimbursement_received_by }}</div>
+            </div>
+
+            <div class="flex justify-end gap-2 border-t border-slate-100 pt-6">
+                <a href="{% url 'pcv_list' %}" class="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold hover:bg-slate-50">Cancel</a>
+                <button type="submit" class="rounded-xl bg-slate-900 px-6 py-2.5 text-sm font-semibold text-white hover:bg-black">{% if object %}Update{% else %}Create{% endif %} PCV</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

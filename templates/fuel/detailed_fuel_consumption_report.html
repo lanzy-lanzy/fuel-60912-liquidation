@@ -1,0 +1,212 @@
+{% extends 'base.html' %}
+{% load fuel_filters  humanize %}
+{% block title %}Detailed Fuel Report — FuelTrack{% endblock %}
+{% block extra_head %}
+<style>
+    @page { size: landscape; margin: 0.4cm; }
+    @media print { .no-print { display:none !important; } .print-only { display:block !important; } .report-card { box-shadow:none !important; border:1px solid #000 !important; } body{ background:#fff !important;} }
+    .print-only{ display:none; }
+    /* modal */
+    #pdfPreviewModal{ display:none; position:fixed; inset:0; z-index:9999; }
+    #pdfPreviewModal.active{ display:block; }
+    .pdf-modal-overlay{ position:absolute; inset:0; background:rgba(15,23,42,0.6); backdrop-filter: blur(4px); }
+    .pdf-modal-content{ position:relative; background:#fff; width:96%; max-width:1280px; max-height:92vh; margin:2vh auto; border-radius:16px; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 24px 64px rgba(0,0,0,0.35); }
+    .pdf-modal-header{ display:flex; justify-content:space-between; align-items:center; padding:14px 18px; border-bottom:1px solid #e2e8f0; background:#f8fafc; }
+    .pdf-modal-body{ padding:20px; overflow:auto; flex:1; }
+    .pdf-modal-footer{ display:flex; justify-content:flex-end; gap:8px; padding:12px 16px; border-top:1px solid #e2e8f0; background:#f8fafc; }
+</style>
+{% endblock %}
+{% block content %}
+<!-- Hero -->
+<div class="rounded-[24px] bg-gradient-to-br from-slate-900 via-indigo-900 to-blue-800 p-[1px] shadow-card">
+    <div class="rounded-[23px] bg-slate-900 p-6 sm:p-8 relative overflow-hidden">
+        <div class="absolute -top-16 -right-16 h-64 w-64 rounded-full bg-blue-500/20 blur-3xl"></div>
+        <div class="relative flex flex-wrap justify-between gap-4">
+            <div>
+                <p class="inline-flex rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-bold tracking-[0.16em] text-blue-100 uppercase backdrop-blur">MDRRMO • Official Form</p>
+                <h1 class="mt-3 text-[28px] font-black leading-none tracking-tight text-white">FUEL CONSUMPTION <span class="bg-gradient-to-r from-cyan-200 to-blue-200 bg-clip-text text-transparent">REPORT</span></h1>
+                <p class="mt-2 max-w-xl text-sm text-blue-100/75">Official 19-column form — activities, distance, AM/PM logs, balances & additional fuel. Print-ready legal landscape.</p>
+                <div class="mt-4 flex flex-wrap gap-2">
+                    <span class="rounded-full bg-white px-3.5 py-1.5 text-xs font-bold text-slate-900">{{ selected_period_label|default:"All Periods" }}</span>
+                    {% if selected_vehicle %}<span class="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur">{{ selected_vehicle }}</span>{% endif %}
+                    {% if selected_driver_name %}<span class="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur">{{ selected_driver_name }}</span>{% endif %}
+                </div>
+            </div>
+            <div class="rounded-2xl bg-white p-4 shadow-soft min-w-[220px]">
+                <p class="text-[11px] font-bold tracking-widest text-slate-400 uppercase">Office</p>
+                <p class="text-sm font-black text-slate-900">MAYOR — Dumingag</p>
+                <p class="text-xs text-slate-500">{{ report_date|date:"F d, Y" }} • {{ vehicles_joined|default:"All Vehicles" }}</p>
+                <div class="mt-3 grid grid-cols-3 gap-2 text-center">
+                    <div class="rounded-xl bg-amber-50 p-2"><p class="text-[10px] font-bold tracking-widest text-amber-700 uppercase">Gasoline</p><p class="text-sm font-black">{{ pdf_total_gasoline|floatformat:2|intcomma }}</p></div>
+                    <div class="rounded-xl bg-blue-50 p-2"><p class="text-[10px] font-bold tracking-widest text-blue-700 uppercase">Diesel</p><p class="text-sm font-black">{{ pdf_total_diesel|floatformat:2|intcomma }}</p></div>
+                    <div class="rounded-xl bg-emerald-50 p-2"><p class="text-[10px] font-bold tracking-widest text-emerald-700 uppercase">Amount</p><p class="text-sm font-black">₱{{ pdf_total_amount|floatformat:0|intcomma }}</p></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="no-print mt-6 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-soft">
+    <form method="get" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3">
+        <div class="space-y-1">
+            <label class="text-[11px] font-bold tracking-widest text-slate-500 uppercase">Month</label>
+            <select name="month" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 outline-none">
+                <option value="">All Months</option>
+                {% for m_id, m_name in months %}<option value="{{ m_id }}" {% if request.GET.month == m_id %}selected{% endif %}>{{ m_name }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="space-y-1">
+            <label class="text-[11px] font-bold tracking-widest text-slate-500 uppercase">Year</label>
+            <select name="year" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 outline-none">
+                <option value="">All Years</option>
+                {% for y in years %}<option value="{{ y }}" {% if request.GET.year == y %}selected{% endif %}>{{ y }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="space-y-1">
+            <label class="text-[11px] font-bold tracking-widest text-slate-500 uppercase">Driver</label>
+            <select name="driver" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 outline-none">
+                <option value="">All Drivers</option>
+                {% for d in drivers %}<option value="{{ d.id }}" {% if request.GET.driver == d.id|stringformat:'s' %}selected{% endif %}>{{ d.name }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="space-y-1">
+            <label class="text-[11px] font-bold tracking-widest text-slate-500 uppercase">Vehicle</label>
+            <select name="vehicle" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 outline-none">
+                <option value="">All Vehicles</option>
+                {% for v in vehicles %}<option value="{{ v }}" {% if request.GET.vehicle == v %}selected{% endif %}>{{ v }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="flex items-end gap-2 lg:col-span-3">
+            <button type="submit" class="flex-1 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-black">Filter Report</button>
+            <button type="button" onclick="window.print()" class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold hover:bg-slate-50">Print</button>
+            <button type="button" onclick="openPdfPreviewModal()" class="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">Preview PDF</button>
+            <a href="{% url 'export_fuel_consumption_csv' %}?{{ request.GET.urlencode }}" class="hidden sm:inline-flex rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold hover:bg-slate-50">CSV</a>
+            <a href="{% url 'export_fuel_consumption_excel' %}?{{ request.GET.urlencode }}" class="hidden sm:inline-flex rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold hover:bg-slate-50">Excel</a>
+        </div>
+    </form>
+</div>
+
+<!-- Print-only header matching PDF -->
+<div class="print-only">
+    <div style="border:1.5px solid #1e3a8a; border-radius:8px; overflow:hidden; margin-bottom:10pt;">
+        <div style="display:flex; justify-content:space-between; background:#0f172a; color:#fff; padding:6pt 12pt; font-size:7pt; letter-spacing:0.6px; text-transform:uppercase; font-weight:600;">
+            <span>MDRRMO • Fuel Monitoring</span><span>{{ report_date|date:"F d, Y" }}</span>
+        </div>
+        <div style="text-align:center; padding:10pt; background:#f8fafc; border-bottom:1px solid #e2e8f0;">
+            <div style="font-size:18pt; font-weight:800; letter-spacing:1px;">FUEL CONSUMPTION REPORT</div>
+            <div style="font-size:7pt; letter-spacing:2px; text-transform:uppercase; color:#64748b; margin:3pt 0 8pt;">Detailed Consumption &amp; Liquidation</div>
+            <span style="display:inline-block; background:#1e3a8a; color:#fff; padding:6pt 16pt; border-radius:9999px; font-weight:800;">{{ selected_period_label }}</span>
+        </div>
+    </div>
+</div>
+
+<!-- Screen report card -->
+<div class="report-card mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft">
+    <div class="flex items-center justify-between border-b border-slate-100 bg-slate-50/60 px-4 sm:px-6 py-3">
+        <h2 class="text-sm font-black tracking-tight uppercase">Official Form — 19 Columns</h2>
+        <span class="hidden sm:inline-flex rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600">Legal • Landscape • 19 cols</span>
+    </div>
+
+    <div class="overflow-x-auto">
+        <table class="w-full border-collapse text-[11px]">
+            <thead>
+                <tr class="bg-slate-900 text-white">
+                    <th rowspan="2" class="border border-slate-700 px-2 py-2 font-semibold whitespace-nowrap">DATE</th>
+                    <th rowspan="2" class="border border-slate-700 px-2 py-2 font-semibold">REF #</th>
+                    <th rowspan="2" class="border border-slate-700 px-2 py-2 font-semibold">VEHICLE</th>
+                    <th rowspan="2" class="border border-slate-700 px-2 py-2 font-semibold">PLATE #</th>
+                    <th rowspan="2" class="border border-slate-700 px-2 py-2 font-semibold">DRIVER</th>
+                    <th rowspan="2" class="border border-slate-700 px-2 py-2 font-semibold">ACTIVITIES</th>
+                    <th rowspan="2" class="border border-slate-700 px-2 py-2 font-semibold">DESTINATION</th>
+                    <th rowspan="2" class="border border-slate-700 px-2 py-2 font-semibold">DIST<br>KM</th>
+                    <th colspan="2" class="border border-slate-700 px-2 py-1 font-semibold bg-slate-800">AM</th>
+                    <th colspan="2" class="border border-slate-700 px-2 py-1 font-semibold bg-slate-800">PM</th>
+                    <th rowspan="2" class="border border-slate-700 px-2 py-2 font-semibold">TOTAL<br>HRS</th>
+                    <th rowspan="2" class="border border-slate-700 px-2 py-2 font-semibold">START<br>BAL</th>
+                    <th colspan="3" class="border border-slate-700 px-2 py-1 font-semibold bg-blue-600">ADDITIONAL</th>
+                    <th rowspan="2" class="border border-slate-700 px-2 py-2 font-semibold">CONSUME</th>
+                    <th rowspan="2" class="border border-slate-700 px-2 py-2 font-semibold">FINISH<br>BAL</th>
+                </tr>
+                <tr class="bg-slate-900 text-white">
+                    <th class="border border-slate-700 px-2 py-1 font-semibold">DEP</th>
+                    <th class="border border-slate-700 px-2 py-1 font-semibold">ARR</th>
+                    <th class="border border-slate-700 px-2 py-1 font-semibold">DEP</th>
+                    <th class="border border-slate-700 px-2 py-1 font-semibold">ARR</th>
+                    <th class="border border-slate-700 px-2 py-1 font-semibold bg-amber-500 text-slate-900">GAS</th>
+                    <th class="border border-slate-700 px-2 py-1 font-semibold bg-blue-600">DIESEL</th>
+                    <th class="border border-slate-700 px-2 py-1 font-semibold">LUB</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for entry in entries %}
+                <tr class="hover:bg-blue-50/40">
+                    <td class="border border-slate-200 px-2 py-1.5 text-center font-mono text-[11px]">{{ entry.date|date:"m/d/Y" }}</td>
+                    <td class="border border-slate-200 px-2 py-1.5 text-center"><span class="rounded-full bg-slate-900 px-1.5 py-0.5 text-[10px] font-bold text-white">#{{ entry.reference_number|stringformat:'04d' }}</span></td>
+                    <td class="border border-slate-200 px-2 py-1.5 text-center text-[11px] font-medium">{{ entry.vehicle }}</td>
+                    <td class="border border-slate-200 px-2 py-1.5 text-center text-[10px] text-slate-500">
+                        {% if entry.vehicle == "Ambulance L300" %}L300{% elif entry.vehicle == "Ambulance Province" %}PROV{% elif entry.vehicle == "Ambulance DOH" %}DOH{% elif entry.vehicle == "Backhoe" %}BCK{% elif entry.vehicle == "Dumptruck" %}DMP{% else %}—{% endif %}
+                    </td>
+                    <td class="border border-slate-200 px-2 py-1.5 text-[11px] font-medium">{{ entry.driver.name }}</td>
+                    <td class="border border-slate-200 px-2 py-1.5 text-[11px]">{{ entry.purpose }}</td>
+                    <td class="border border-slate-200 px-2 py-1.5"><span class="rounded-full border border-slate-200 bg-white px-1.5 py-0.5 text-[10px]">{{ entry.get_destination_display }}</span></td>
+                    <td class="border border-slate-200 px-2 py-1.5 text-center">{% if entry.destination == "dipolog" %}85{% elif entry.destination == "cagayan" %}120{% elif entry.destination == "margosatubig" %}45{% elif entry.destination == "pagadian_city" %}25{% elif entry.destination == "ozamiz_city" %}65{% elif entry.destination == "zamboanga_city" %}150{% elif entry.destination == "davao_city" %}450{% elif entry.destination == "ipil" %}95{% elif entry.destination == "sindangan" %}35{% else %}15{% endif %}</td>
+                    <td class="border border-slate-200 px-2 py-1.5 text-center">{% if entry.departure_time %}{{ entry.departure_time|time:"H:i" }}{% else %}08:00{% endif %}</td>
+                    <td class="border border-slate-200 px-2 py-1.5 text-center">{{ entry.arrival_time|time:"H:i"|default:"10:00" }}</td>
+                    <td class="border border-slate-200 px-2 py-1.5 text-center">{{ entry.return_departure_time|time:"H:i"|default:"14:00" }}</td>
+                    <td class="border border-slate-200 px-2 py-1.5 text-center">{{ entry.return_arrival_time|time:"H:i"|default:"16:00" }}</td>
+                    <td class="border border-slate-200 px-2 py-1.5 text-center">6</td>
+                    <td class="border border-slate-200 px-2 py-1.5 text-center font-mono">100.00</td>
+                    <td class="border border-slate-200 px-2 py-1.5 text-center bg-amber-50">{% if entry.vehicle == "Backhoe" or entry.vehicle == "Dumptruck" %}{{ entry.total_liters|display_fuel_total }}{% else %}—{% endif %}</td>
+                    <td class="border border-slate-200 px-2 py-1.5 text-center bg-blue-50 font-semibold text-blue-700">{% if entry.vehicle == "Ambulance L300" or entry.vehicle == "Ambulance Province" or entry.vehicle == "Ambulance DOH" %}{{ entry.total_liters|display_fuel_total }}{% else %}—{% endif %}</td>
+                    <td class="border border-slate-200 px-2 py-1.5 text-center">2.5</td>
+                    <td class="border border-slate-200 px-2 py-1.5 text-center font-mono font-bold">{{ entry.total_liters|display_fuel_total }}</td>
+                    <td class="border border-slate-200 px-2 py-1.5 text-center font-mono">100.00</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="19" class="border border-slate-200 px-6 py-10 text-center text-slate-500">No records found — adjust filters.</td></tr>
+                {% endfor %}
+                {% for i in "12345" %}<tr><td class="border border-slate-200 px-2 py-3">&nbsp;</td><td class="border border-slate-200"></td><td class="border border-slate-200"></td><td class="border border-slate-200"></td><td class="border border-slate-200"></td><td class="border border-slate-200"></td><td class="border border-slate-200"></td><td class="border border-slate-200"></td><td class="border border-slate-200"></td><td class="border border-slate-200"></td><td class="border border-slate-200"></td><td class="border border-slate-200"></td><td class="border border-slate-200"></td><td class="border border-slate-200"></td><td class="border border-slate-200"></td><td class="border border-slate-200"></td><td class="border border-slate-200"></td><td class="border border-slate-200"></td><td class="border border-slate-200"></td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="grid grid-cols-2 gap-0 border-t border-slate-200 bg-slate-50/50 p-6 text-center">
+        <div class="border-r border-slate-200 pr-6">
+            <p class="text-[11px] font-bold tracking-widest text-slate-400 uppercase">Prepared by</p>
+            <div class="mx-auto mt-6 h-px w-40 bg-slate-900"></div>
+            <p class="mt-2 text-sm font-black">GERLAN DORONA</p><p class="text-xs tracking-widest text-slate-500 uppercase">MDRRMO Clerk</p>
+        </div>
+        <div class="pl-6">
+            <p class="text-[11px] font-bold tracking-widest text-slate-400 uppercase">Noted by</p>
+            <div class="mx-auto mt-6 h-px w-40 bg-slate-900"></div>
+            <p class="mt-2 text-sm font-black">— — — — — — — — —</p><p class="text-xs tracking-widest text-slate-500 uppercase">Municipal Mayor</p>
+        </div>
+    </div>
+</div>
+
+<!-- PDF modal (kept for preview) -->
+<div id="pdfPreviewModal" aria-hidden="true">
+    <div class="pdf-modal-overlay" onclick="closePdfPreviewModal()"></div>
+    <div class="pdf-modal-content">
+        <div class="pdf-modal-header no-print">
+            <h3 class="text-sm font-bold">Fuel Consumption — Print Preview</h3>
+            <button class="rounded-full border border-slate-200 bg-white px-2 py-1 text-sm" onclick="closePdfPreviewModal()">✕</button>
+        </div>
+        <div class="pdf-modal-body">
+            <p class="text-center text-xs text-slate-500 mb-3">Preview matches the printed official form — use Print for hard copy.</p>
+            <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 text-center text-xs text-slate-600">Detailed preview table is identical to the screen report above. Close and use <b>Print</b> or <b>Export PDF</b> for distribution.</div>
+        </div>
+        <div class="pdf-modal-footer no-print">
+            <button onclick="closePdfPreviewModal()" class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold">Close</button>
+            <button onclick="window.print()" class="rounded-xl bg-blue-600 px-5 py-2 text-sm font-semibold text-white">Print</button>
+        </div>
+    </div>
+</div>
+
+<script>
+function openPdfPreviewModal(){document.getElementById('pdfPreviewModal').classList.add('active'); document.body.style.overflow='hidden';}
+function closePdfPreviewModal(){document.getElementById('pdfPreviewModal').classList.remove('active'); document.body.style.overflow='';}
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closePdfPreviewModal(); });
+</script>
+{% endblock %}

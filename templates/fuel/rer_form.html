@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% block title %}{% if object %}Edit RER{% else %}New RER{% endif %} — FuelTrack{% endblock %}
+{% block extra_head %}
+<style>.form-control{width:100%;border-radius:0.75rem;border:1px solid #e2e8f0;background:#f8fafc;padding:0.7rem 0.9rem;font-size:0.9rem;font-weight:500} .form-control:focus{outline:none;border-color:#2563eb;background:#fff;box-shadow:0 0 0 4px rgba(37,99,235,.1)}</style>
+{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-4xl">
+    <a href="{% url 'rer_list' %}" class="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900">← Back to RER</a>
+    <div class="mt-4 rounded-[20px] bg-slate-900 p-6 text-white">
+        <p class="inline-flex rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-bold tracking-widest uppercase">MDRRMO • RER + Image</p>
+        <h1 class="mt-3 text-2xl font-black tracking-tight">{% if object %}Edit RER {{ object.rer_no|default:object.pk }}{% else %}New Reimbursement Expense Receipt{% endif %}</h1>
+        <p class="text-sm text-blue-100/70 mt-1">Prints: <b class="text-white">Image on top + RER form at bottom</b> on one A4. PCV is separate A4 attachment.</p>
+    </div>
+
+    <div class="mt-6 rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-soft">
+        <form method="post" enctype="multipart/form-data" novalidate class="space-y-6">
+            {% csrf_token %}
+            {% if form.non_field_errors %}<div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{{ form.non_field_errors }}</div>{% endif %}
+
+            <!-- Image + PCV link -->
+            <div class="rounded-xl border-2 border-dashed border-blue-200 bg-blue-50/50 p-4">
+                <p class="text-xs font-bold tracking-widest text-blue-800 uppercase">Attachment Image (printed on top of RER)</p>
+                <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="space-y-1.5"><label class="text-[11px] font-bold tracking-widest text-slate-500 uppercase">Image File (JPG/PNG)</label>{{ form.attached_image }}{% if form.attached_image.errors %}<p class="text-xs text-red-600">{{ form.attached_image.errors.0 }}</p>{% endif %}{% if object.attached_image %}<p class="text-xs text-slate-500">Current: <a href="{{ object.attached_image.url }}" target="_blank" class="text-blue-600 underline">View</a></p>{% endif %}</div>
+                    <div class="space-y-1.5"><label class="text-[11px] font-bold tracking-widest text-slate-500 uppercase">Link to Petty Cash Voucher (optional)</label>{{ form.petty_cash_voucher }}<p class="text-xs text-slate-400">PCV prints as separate A4 attachment.</p></div>
+                </div>
+            </div>
+
+            <!-- Header -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="space-y-1.5"><label class="text-[11px] font-bold tracking-widest text-slate-500 uppercase">Entity Name</label>{{ form.entity_name }}</div>
+                <div class="space-y-1.5"><label class="text-[11px] font-bold tracking-widest text-slate-500 uppercase">Fund Cluster</label>{{ form.fund_cluster }}</div>
+                <div class="space-y-1.5"><label class="text-[11px] font-bold tracking-widest text-slate-500 uppercase">Date</label>{{ form.receipt_date }}</div>
+                <div class="space-y-1.5"><label class="text-[11px] font-bold tracking-widest text-slate-500 uppercase">RER No.</label>{{ form.rer_no }}</div>
+            </div>
+
+            <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="space-y-1.5"><label class="text-[11px] font-bold tracking-widest text-slate-500 uppercase">Received from (Name)</label>{{ form.received_from_name }}</div>
+                <div class="space-y-1.5"><label class="text-[11px] font-bold tracking-widest text-slate-500 uppercase">Official Designation</label>{{ form.received_from_designation }}</div>
+                <div class="space-y-1.5"><label class="text-[11px] font-bold tracking-widest text-slate-500 uppercase">Amount in Words</label>{{ form.amount_in_words }}</div>
+                <div class="space-y-1.5"><label class="text-[11px] font-bold tracking-widest text-slate-500 uppercase">Amount in Figures (₱)</label>{{ form.amount_in_figures }}</div>
+                <div class="sm:col-span-2 space-y-1.5"><label class="text-[11px] font-bold tracking-widest text-slate-500 uppercase">In payment for</label>{{ form.in_payment_for }}</div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="rounded-xl border border-slate-200 p-4 space-y-3">
+                    <p class="text-xs font-bold tracking-widest text-slate-500 uppercase text-center">Payee</p>
+                    <div class="space-y-1.5"><label class="text-xs font-semibold text-slate-700">Name</label>{{ form.payee_signature_name }}</div>
+                    <div class="space-y-1.5"><label class="text-xs font-semibold text-slate-700">Address</label>{{ form.payee_address }}</div>
+                    <div class="space-y-1.5"><label class="text-xs font-semibold text-slate-700">Residence Cert No.</label>{{ form.payee_residence_cert_no }}</div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="space-y-1.5"><label class="text-xs font-semibold text-slate-700">Date of Issue</label>{{ form.payee_residence_date }}</div>
+                        <div class="space-y-1.5"><label class="text-xs font-semibold text-slate-700">Place of Issue</label>{{ form.payee_residence_place }}</div>
+                    </div>
+                </div>
+                <div class="rounded-xl border border-slate-200 p-4 space-y-3">
+                    <p class="text-xs font-bold tracking-widest text-slate-500 uppercase text-center">Witness</p>
+                    <div class="space-y-1.5"><label class="text-xs font-semibold text-slate-700">Name</label>{{ form.witness_signature_name }}</div>
+                    <div class="space-y-1.5"><label class="text-xs font-semibold text-slate-700">Address</label>{{ form.witness_address }}</div>
+                    <div class="space-y-1.5"><label class="text-xs font-semibold text-slate-700">Residence Cert No.</label>{{ form.witness_residence_cert_no }}</div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="space-y-1.5"><label class="text-xs font-semibold text-slate-700">Date of Issue</label>{{ form.witness_residence_date }}</div>
+                        <div class="space-y-1.5"><label class="text-xs font-semibold text-slate-700">Place of Issue</label>{{ form.witness_residence_place }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 border-t border-slate-100 pt-6">
+                <a href="{% url 'rer_list' %}" class="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold hover:bg-slate-50">Cancel</a>
+                <button type="submit" class="rounded-xl bg-slate-900 px-6 py-2.5 text-sm font-semibold text-white hover:bg-black">{% if object %}Update{% else %}Create{% endif %} RER</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+(function() {
+    const fig = document.getElementById('id_amount_in_figures');
+    const words = document.getElementById('id_amount_in_words');
+    if (!fig || !words) return;
+
+    const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+    const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+    function chunkToWords(n) {
+        let s = '';
+        if (n >= 100) {
+            s += ones[Math.floor(n/100)] + ' Hundred';
+            n %= 100;
+            if (n) s += ' ';
+        }
+        if (n >= 20) {
+            s += tens[Math.floor(n/10)];
+            n %= 10;
+            if (n) s += ' ' + ones[n];
+        } else if (n > 0) {
+            s += ones[n];
+        }
+        return s;
+    }
+
+    function numberToWords(num) {
+        if (num === 0) return 'Zero';
+        let str = '';
+        const scales = [
+            {v: 1000000000, n: 'Billion'},
+            {v: 1000000, n: 'Million'},
+            {v: 1000, n: 'Thousand'},
+        ];
+        let n = Math.floor(num);
+        for (const sc of scales) {
+            if (n >= sc.v) {
+                const c = Math.floor(n / sc.v);
+                str += chunkToWords(c) + ' ' + sc.n;
+                n %= sc.v;
+                if (n) str += ' ';
+            }
+        }
+        if (n > 0 || str === '') {
+            str += chunkToWords(n);
+        }
+        return str.trim();
+    }
+
+    function amountToWords(val) {
+        if (!val && val !== 0) return '';
+        // remove commas and spaces
+        let s = String(val).replace(/,/g, '').trim();
+        if (!s || isNaN(s)) return '';
+        let num = parseFloat(s);
+        if (isNaN(num)) return '';
+        let pesos = Math.floor(Math.abs(num));
+        let centavos = Math.round((Math.abs(num) - pesos) * 100);
+        // handle rounding overflow
+        if (centavos === 100) { pesos += 1; centavos = 0; }
+
+        let w = '';
+        if (pesos === 0 && centavos === 0) {
+            w = 'Zero Pesos';
+        } else if (pesos > 0) {
+            w = numberToWords(pesos) + (pesos === 1 ? ' Peso' : ' Pesos');
+            if (centavos > 0) {
+                w += ' and ' + numberToWords(centavos) + (centavos === 1 ? ' Centavo' : ' Centavos');
+            }
+        } else {
+            // pesos 0 but centavos >0
+            w = numberToWords(centavos) + (centavos === 1 ? ' Centavo' : ' Centavos');
+        }
+        // Title case already, ensure first letter capital
+        return w;
+    }
+
+    let userEditedWords = false;
+    // If user focuses and types in words field, mark as manually edited
+    words.addEventListener('input', function() {
+        // if user clears it, allow auto again on next fig change
+        if (words.value.trim() === '') userEditedWords = false;
+        else userEditedWords = true;
+    });
+    // Double-click to force re-auto
+    words.addEventListener('dblclick', function() {
+        userEditedWords = false;
+        words.value = amountToWords(fig.value);
+    });
+    words.title = 'Auto-filled from Amount in Figures — double-click to re-generate, or clear to re-enable auto';
+
+    function sync() {
+        if (userEditedWords && words.value.trim() !== '') return;
+        const w = amountToWords(fig.value);
+        if (w) {
+            words.value = w;
+            words.dispatchEvent(new Event('change', {bubbles:true}));
+        } else if (fig.value.trim() === '') {
+            words.value = '';
+        }
+    }
+
+    fig.addEventListener('input', sync);
+    fig.addEventListener('change', sync);
+    // On load, if figures has value and words empty, fill
+    document.addEventListener('DOMContentLoaded', function() {
+        if (fig.value && !words.value.trim()) {
+            words.value = amountToWords(fig.value);
+        }
+    });
+    // Also trigger once now (in case DOM already loaded)
+    if (fig.value && !words.value.trim()) {
+        words.value = amountToWords(fig.value);
+    }
+
+    // Visual hint
+    const hint = document.createElement('p');
+    hint.className = 'text-[11px] text-slate-400 mt-1';
+    hint.textContent = 'Auto-converts to words • editing words pauses auto (clear to resume, double-click to regenerate)';
+    if (words.parentNode) words.parentNode.appendChild(hint);
+})();
+</script>
+{% endblock %}

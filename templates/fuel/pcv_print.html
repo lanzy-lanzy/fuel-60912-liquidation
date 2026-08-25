@@ -1,0 +1,165 @@
+{% load humanize %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Petty Cash Voucher — {{ voucher.voucher_no|default:voucher.pk }}</title>
+<style>
+    @page { size: A4 portrait; margin: 7mm; }
+    * { box-sizing: border-box; }
+    body { margin:0; padding:0; background:#f3f4f6; font-family: Arial, Helvetica, sans-serif; color:#000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .no-print { max-width:210mm; margin:14px auto; display:flex; gap:8px; justify-content:flex-end; }
+    .no-print a, .no-print button { font-family: Inter,Arial,sans-serif; font-size:13px; padding:9px 16px; border-radius:9999px; text-decoration:none; cursor:pointer; border:1px solid #e2e8f0; }
+    .btn-print{ background:#0f172a; color:#fff; border-color:#0f172a; font-weight:700; }
+    .btn-back{ background:#fff; color:#0f172a; }
+    @media print { body{ background:#fff !important; } .no-print{ display:none !important; } .sheet{ box-shadow:none !important; } }
+    .sheet {
+        width: 190mm;
+        margin: 0 auto;
+        background:#fff;
+        border: 1.4pt solid #000;
+        box-shadow: 0 8px 24px rgba(15,23,42,.08);
+        overflow:hidden;
+    }
+    .top-table, .mid-table { width:100%; border-collapse:collapse; }
+    .top-table td { border:0.7pt solid #000; padding:2.8pt 6pt; font-size:8pt; vertical-align:middle; height:6.8mm; }
+    .top-table .title-cell { text-align:center; font-weight:800; font-size:10.5pt; letter-spacing:0.06em; text-transform:uppercase; }
+    .top-table .label { font-weight:700; }
+    .ul { border-bottom:0.7pt solid #000; display:inline-block; min-width:32mm; padding:0 2pt 1pt; margin-left:2pt; font-weight:600; }
+    .ul.long { min-width:42mm; }
+    .mid-head td { text-align:center; font-weight:800; font-size:7.5pt; letter-spacing:0.04em; text-transform:uppercase; padding:4pt 0; background:#f8fafc; border:0.7pt solid #000; }
+    .mid-table td { border:0.7pt solid #000; vertical-align:top; padding:0; }
+    .mid-table .head-cell { background:#f1f5f9; text-align:center; font-weight:800; font-size:7.5pt; text-transform:uppercase; padding:3pt 0; border-bottom:0.7pt solid #000; }
+    .mid-table .body-cell { padding:4pt 6pt; font-size:8pt; }
+    .sig-block { text-align:center; padding:4pt 6pt; }
+    .sig-line { border-top:0.7pt solid #000; width:54mm; margin:6pt auto 3pt; }
+    .sig-name { font-weight:800; text-transform:uppercase; font-size:7.5pt; }
+    .sig-role { font-size:6.3pt; color:#475569; line-height:1.2; }
+    .sig-label { font-size:7pt; text-align:left; margin-bottom:1pt; }
+    .amount-line { text-align:right; font-weight:800; font-size:9pt; }
+    .check-row { display:flex; align-items:center; gap:7pt; margin:2.5pt 0; font-size:7.5pt; }
+    .box { width:5.5mm; height:3.8mm; border:0.7pt solid #000; display:inline-flex; align-items:center; justify-content:center; font-size:8pt; background:#fff; flex-shrink:0; font-weight:900; }
+    .check.checked .box { background:#000 !important; color:#fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .small-link { color:#2563eb; text-decoration:underline; font-size:6.5pt; }
+</style>
+</head>
+<body>
+<div class="no-print">
+    <button onclick="window.print()" class="btn-print">Print</button>
+    <a href="{% url 'pcv_detail' voucher.pk %}" class="btn-back">Back</a>
+    <a href="{% url 'pcv_list' %}" class="btn-back">List</a>
+</div>
+<div class="sheet">
+    <table class="top-table">
+        <colgroup><col style="width:62%"><col style="width:38%"></colgroup>
+        <tr><td class="title-cell">PETTY CASH VOUCHER</td><td><span class="label">No:</span> <span class="ul long">{{ voucher.voucher_no|default:"" }}</span></td></tr>
+        <tr><td><span class="label">LGU:</span> DUMINGAG</td><td><span class="label">Date:</span> <span class="ul long">{{ voucher.voucher_date|date:"m/d/Y" }}</span></td></tr>
+        <tr><td><span class="label">Fund:</span> <span class="ul long">{{ voucher.fund|default:"" }}</span></td><td><span class="label">FPP:</span> <span class="ul long">{{ voucher.fpp|default:"" }}</span></td></tr>
+        <tr><td colspan="2"><span class="label">Payee/Office:</span> {{ voucher.payee_office }}</td></tr>
+        <tr><td colspan="2"><span class="label">Adress:</span> {{ voucher.address }}</td></tr>
+    </table>
+    <table class="mid-table" style="border-top:none;">
+        <colgroup><col style="width:50%"><col style="width:50%"></colgroup>
+        <tr>
+            <td style="text-align:center; font-weight:800; font-size:7.5pt; background:#f8fafc; padding:4pt 0; border-bottom:1.4pt solid #000; border-right:1px solid #000;">I. &nbsp; To be filled out upon request</td>
+            <td style="text-align:center; font-weight:800; font-size:7.5pt; background:#f8fafc; padding:4pt 0; border-bottom:1.4pt solid #000;">II. &nbsp; To be filled out upon liquidation</td>
+        </tr>
+        <!-- Row 1: Particulars | Total Granted + Paid -->
+        <tr>
+            <td style="padding:0; vertical-align:top;">
+                <div style="display:grid; grid-template-columns:2fr 1fr; background:#f1f5f9; text-align:center; font-weight:800; font-size:7.5pt; text-transform:uppercase; border-bottom:1px solid #000;">
+                    <div style="padding:3pt 0; border-right:1px solid #000;">Particulars</div><div style="padding:3pt 0;">Amount</div>
+                </div>
+                <div style="display:grid; grid-template-columns:2fr 1fr; min-height:38mm;">
+                    <div style="padding:4pt 6pt; font-size:8pt; border-right:1px solid #000; text-align:left; white-space:pre-wrap; word-break:break-word;">{{ voucher.particulars|default:""|linebreaksbr }}</div>
+                    <div style="padding:4pt 6pt; font-size:8.5pt; text-align:right; font-weight:700;">{% if voucher.amount %}₱{{ voucher.amount|floatformat:2|intcomma }}{% endif %}</div>
+                </div>
+            </td>
+            <td style="padding:5pt 7pt; font-size:7.5pt; vertical-align:top;">
+                <p>Total Amount Granted</p>
+                <p class="amount-line">{% if voucher.total_amount_granted %}₱{{ voucher.total_amount_granted|floatformat:2|intcomma }}{% else %}<span class="ul" style="min-width:28mm; display:inline-block;">&nbsp;</span>{% endif %}</p>
+                <p style="margin-top:6pt;">Total Amount Paid per</p>
+                <p>OR/Invoice No. <span class="ul">{{ voucher.or_invoice_no|default:"" }}</span></p>
+                <p class="amount-line" style="margin-top:3pt;">{% if voucher.total_amount_paid_per_or %}₱{{ voucher.total_amount_paid_per_or|floatformat:2|intcomma }}{% endif %}</p>
+            </td>
+        </tr>
+        <!-- Row 2: Purpose | Refunded -->
+        <tr>
+            <td style="padding:4pt 6pt; font-size:7.5pt; height:14mm; vertical-align:middle;"><span class="label">Purpose:</span> <span class="ul" style="min-width:78mm;">{{ voucher.purpose|default:"" }}</span></td>
+            <td style="padding:4pt 7pt; font-size:7.5pt; vertical-align:middle;"><p>Amount Refunded/<br><span class="small-link">(Reimbursed)</span> <span class="ul" style="min-width:26mm; float:right; text-align:right; font-weight:700;">{% if voucher.amount_refunded %}₱{{ voucher.amount_refunded|floatformat:2|intcomma }}{% endif %}</span></p></td>
+        </tr>
+        <!-- Row 3: Requested | Received -->
+        <tr>
+            <td style="padding:4pt 6pt; text-align:center; vertical-align:middle; height:38mm;">
+                <p style="font-size:7pt; text-align:left; margin:0 0 1pt;">Requested by:</p>
+                <div style="border-top:0.7pt solid #000; width:54mm; margin:6pt auto 3pt;"></div>
+                <p style="font-weight:800; text-transform:uppercase; font-size:7.5pt; margin:0;">{{ voucher.requested_by_name|default:"_________________________" }}</p>
+                <p style="font-size:6.3pt; color:#475569; margin:0; line-height:1.2;">Signature over Printed Name<br>Requestor</p>
+            </td>
+            <td style="padding:4pt 7pt; vertical-align:middle; height:38mm;">
+                <div class="check-row {% if voucher.received_refund %}checked{% endif %}"><span class="box">{% if voucher.received_refund %}✓{% endif %}</span> Received Refund</div>
+                <div class="check-row {% if voucher.reimbursement_paid %}checked{% endif %}"><span class="box">{% if voucher.reimbursement_paid %}✓{% endif %}</span> Reimbursement Paid</div>
+                <div style="text-align:center; margin-top:8pt;">
+                    <div style="border-top:0.7pt solid #000; width:50mm; margin:4pt auto 2pt;"></div>
+                    <p style="font-weight:800; text-transform:uppercase; font-size:7pt; margin:0;">{{ voucher.paid_by_name }}</p>
+                    <p style="font-size:6.3pt; color:#475569; margin:0;">Signature over Printed Name<br>Petty Cash Custodian</p>
+                </div>
+            </td>
+        </tr>
+        <!-- Row 4: Approved | (empty signature) -->
+        <tr>
+            <td style="padding:4pt 6pt; text-align:center; vertical-align:middle; height:38mm;">
+                <p style="font-size:7pt; text-align:left; margin:0 0 1pt;">Approved by:</p>
+                <div style="border-top:0.7pt solid #000; width:54mm; margin:6pt auto 3pt;"></div>
+                <p style="font-weight:800; text-transform:uppercase; font-size:7.5pt; margin:0;">{{ voucher.approved_by_name }}</p>
+                <p style="font-size:6.3pt; color:#475569; margin:0;">Signature over Printed Name<br>Immediate Supervisor</p>
+            </td>
+            <td style="padding:4pt 6pt; text-align:center; vertical-align:middle; height:38mm;">
+                <div style="border-top:0.7pt solid #000; width:50mm; margin:8pt auto 2pt;"></div>
+                <p style="font-weight:800; text-transform:uppercase; font-size:7.5pt; margin:0;">{{ voucher.paid_by_name }}</p>
+                <p style="font-size:6.3pt; color:#475569; margin:0;">Signature over Printed Name<br>Petty Cash Custodian</p>
+                <p style="font-size:6pt; color:#64748b; margin:4pt 0 0;">&nbsp;</p>
+            </td>
+        </tr>
+        <!-- Row 5: Paid | Liquidation (bottom, no separate Date row) -->
+        <tr>
+            <td style="padding:0; vertical-align:top;">
+                <div style="padding:4pt 6pt; text-align:center;">
+                    <p style="font-size:7pt; text-align:left; margin:0 0 1pt;">Paid by:</p>
+                    <div style="border-top:0.7pt solid #000; width:54mm; margin:6pt auto 3pt;"></div>
+                    <p style="font-weight:800; text-transform:uppercase; font-size:7.5pt; margin:0;">{{ voucher.paid_by_name }}</p>
+                    <p style="font-size:6.3pt; color:#475569; margin:0;">Signature over Printed Name<br>Petty Cash Custodian</p>
+                </div>
+                <div style="padding:4pt 6pt 6pt; text-align:center; border-top:1px solid #000; margin-top:4pt;">
+                    <p style="font-size:7pt; text-align:left; margin:0 0 1pt;">Cash Received by:</p>
+                    <div style="height:14mm; display:flex; align-items:flex-end; justify-content:center;">
+                        <div style="border-top:0.7pt solid #000; width:54mm; margin:0 auto 3pt;"></div>
+                    </div>
+                    <p style="font-weight:800; text-transform:uppercase; font-size:7.5pt; margin:0;">{{ voucher.cash_received_by_name|default:"_________________________" }}</p>
+                    <p style="font-size:6.3pt; color:#475569; margin:0;">Signature over Printed Name<br>Payee</p>
+                    <p style="margin-top:6pt; font-size:6.5pt; text-align:left;">Date: <span class="ul" style="min-width:26mm;"></span></p>
+                </div>
+            </td>
+            <td style="padding:0; vertical-align:top;">
+                <div style="padding:4pt 7pt;">
+                    <div class="check-row {% if voucher.liquidation_submitted %}checked{% endif %}"><span class="box">{% if voucher.liquidation_submitted %}✓{% endif %}</span> Liquidation Submitted</div>
+                    <div class="check-row"><span class="box"></span> Reimbursement Received by:</div>
+                    <div style="text-align:center; margin-top:4pt;">
+                        <div style="height:14mm; display:flex; align-items:flex-end; justify-content:center;">
+                            <div style="border-top:0.7pt solid #000; width:50mm; margin:0 auto 3pt; width:50mm;"></div>
+                        </div>
+                        <p style="font-weight:800; text-transform:uppercase; font-size:7.5pt; margin:0;">{{ voucher.reimbursement_received_by|default:"ERLYN MANADA" }}</p>
+                        <p style="font-size:6.3pt; color:#475569; margin:0;">Signature over Printed Name<br>Payee</p>
+                        <p style="margin-top:6pt; font-size:6.5pt; text-align:left;">Date: <span class="ul" style="min-width:26mm;"></span></p>
+                    </div>
+                </div>
+            </td>
+        </tr>
+    </table>
+</div>
+<div class="no-print" style="justify-content:center; margin-top:10px; color:#475569; font-size:11px; font-family:Inter,sans-serif;">
+    <span>Aligned • No separated Date row — Date inside Payee block • 190×277mm A4 • Borders continuous</span>
+</div>
+</body>
+</html>

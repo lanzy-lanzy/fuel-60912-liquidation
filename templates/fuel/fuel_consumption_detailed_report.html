@@ -1,0 +1,324 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}Fuel Consumption Detailed Report — FuelTrack{% endblock %}
+
+{% block extra_head %}
+<style>
+    @page { size: landscape; margin: 0.6cm; }
+    @media print {
+        .no-print { display: none !important; }
+        .print-only { display: block !important; }
+        body { background: #fff !important; }
+        .shadow, .shadow-card, .shadow-soft { box-shadow: none !important; }
+    }
+    .print-only { display: none; }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Header Hero -->
+<div class="rounded-[24px] bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-700 p-[1px] shadow-card">
+    <div class="rounded-[23px] bg-gradient-to-br from-slate-900 via-slate-900 to-indigo-950 p-6 sm:p-8 relative overflow-hidden">
+        <div class="absolute -top-20 -right-20 h-64 w-64 rounded-full bg-white/10 blur-3xl"></div>
+        <div class="absolute -bottom-24 -left-24 h-72 w-72 rounded-full bg-blue-500/20 blur-3xl"></div>
+
+        <div class="relative">
+            <div class="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                    <p class="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-bold tracking-[0.16em] text-blue-100 uppercase backdrop-blur">
+                        <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span> MDRRMO • Dumingag • Zamboanga del Sur
+                    </p>
+                    <h1 class="mt-3 text-[28px] sm:text-[32px] font-black tracking-tight text-white leading-[0.9]">
+                        FUEL CONSUMPTION<br class="hidden sm:block"/> <span class="bg-gradient-to-r from-blue-200 to-cyan-200 bg-clip-text text-transparent">DETAILED REPORT</span>
+                    </h1>
+                    <p class="mt-2 max-w-[640px] text-sm leading-6 text-blue-100/80">
+                        Starting balance → Issued → Consumed → Finished balance. Reconciled from saved gas-slip balances for audit-ready liquidation.
+                    </p>
+                </div>
+                <div class="flex flex-col items-start sm:items-end gap-3">
+                    <div class="rounded-2xl bg-white px-4 py-3 shadow-soft min-w-[220px]">
+                        <p class="text-[11px] font-bold tracking-widest text-slate-400 uppercase">Report Period</p>
+                        <p class="text-sm font-bold text-slate-900">{{ selected_month|default:"All Months" }} {% if selected_year %}{{ selected_year }}{% else %}{{ request.GET.year|default:"All Years" }}{% endif %}</p>
+                        <p class="text-xs text-slate-500">{{ request.GET.date|default:"All dates" }} • {{ selected_vehicle|default:"All vehicles" }}</p>
+                    </div>
+                    <div class="hidden sm:flex items-center gap-2 text-xs text-blue-100/70">
+                        <span class="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/10 border border-white/15">◍</span>
+                        Generated {% now "M d, Y" %} • {{ vehicles|length }} vehicle(s)
+                    </div>
+                </div>
+            </div>
+
+            <!-- meta pills -->
+            <div class="mt-6 flex flex-wrap gap-2">
+                <span class="inline-flex items-center gap-2 rounded-full bg-white text-slate-900 px-3.5 py-1.5 text-xs font-bold shadow">
+                    <span class="h-6 w-6 rounded-full bg-slate-900 text-white grid place-items-center text-[11px]">◈</span>
+                    {% if selected_vehicle %}{{ selected_vehicle }}{% elif vehicles %}{{ vehicles|join:" • " }}{% else %}All Vehicles{% endif %}
+                </span>
+                {% if selected_driver %}<span class="inline-flex items-center gap-2 rounded-full bg-amber-400 text-slate-900 px-3 py-1.5 text-xs font-bold">Driver #{{ selected_driver }}</span>{% endif %}
+                {% if selected_date %}<span class="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 text-white px-3 py-1.5 text-xs font-semibold backdrop-blur">Date: {{ selected_date }}</span>{% endif %}
+                <span class="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 text-white px-3 py-1.5 text-xs font-medium backdrop-blur">
+                    <span class="h-2 w-2 rounded-full bg-emerald-400"></span> {{ report_data|length }} record{{ report_data|length|pluralize }}
+                </span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="no-print mt-6 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-soft">
+    <form method="get" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
+        <div class="space-y-1.5">
+            <label for="month" class="text-[11px] font-bold tracking-widest text-slate-500 uppercase">Month</label>
+            <div class="relative">
+                <select name="month" id="month" class="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 pr-8 text-sm font-medium text-slate-900 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 outline-none">
+                    <option value="">All Months</option>
+                    {% for m_id, m_name in months %}<option value="{{ m_id }}" {% if selected_month == m_id %}selected{% endif %}>{{ m_name }}</option>{% endfor %}
+                </select>
+                <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">▾</span>
+            </div>
+        </div>
+        <div class="space-y-1.5">
+            <label for="year" class="text-[11px] font-bold tracking-widest text-slate-500 uppercase">Year</label>
+            <div class="relative">
+                <select name="year" id="year" class="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 pr-8 text-sm font-medium text-slate-900 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 outline-none">
+                    <option value="">All Years</option>
+                    {% for y in years %}<option value="{{ y }}" {% if selected_year == y %}selected{% endif %}>{{ y }}</option>{% endfor %}
+                </select>
+                <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">▾</span>
+            </div>
+        </div>
+        <div class="space-y-1.5">
+            <label for="driver" class="text-[11px] font-bold tracking-widest text-slate-500 uppercase">Driver</label>
+            <div class="relative">
+                <select name="driver" id="driver" class="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 pr-8 text-sm font-medium focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 outline-none">
+                    <option value="">All Drivers</option>
+                    {% for driver in drivers %}<option value="{{ driver.id }}" {% if selected_driver == driver.id|stringformat:"s" %}selected{% endif %}>{{ driver.name }}</option>{% endfor %}
+                </select>
+                <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">▾</span>
+            </div>
+        </div>
+        <div class="space-y-1.5">
+            <label for="vehicle" class="text-[11px] font-bold tracking-widest text-slate-500 uppercase">Vehicle</label>
+            <div class="relative">
+                <select name="vehicle" id="vehicle" class="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 pr-8 text-sm font-medium focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 outline-none">
+                    <option value="">All Vehicles</option>
+                    {% for vehicle in vehicles %}<option value="{{ vehicle }}" {% if selected_vehicle == vehicle %}selected{% endif %}>{{ vehicle }}</option>{% endfor %}
+                </select>
+                <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">▾</span>
+            </div>
+        </div>
+        <div class="sm:col-span-2 lg:col-span-2 flex items-end gap-2">
+            <button type="submit" class="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow hover:bg-black transition">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M7 12h10M10 18h4"/></svg>
+                Apply Filters
+            </button>
+            <button type="button" onclick="document.getElementById('month').selectedIndex=0;document.getElementById('year').selectedIndex=0;document.getElementById('driver').selectedIndex=0;document.getElementById('vehicle').selectedIndex=0; this.form.submit()" class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Clear</button>
+        </div>
+    </form>
+
+    <!-- quick actions -->
+    <div class="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-4">
+        <button onclick="window.print()" class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></svg>
+            Print
+        </button>
+        <a href="{% url 'export_fuel_consumption_report_pdf' %}?{{ request.GET.urlencode }}" class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-3.5 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="M9 15h6"/></svg>
+            Export PDF
+        </a>
+        <a href="{% url 'export_fuel_consumption_csv' %}?{{ request.GET.urlencode }}" class="inline-flex items-center gap-2 rounded-xl bg-white border border-slate-200 px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+            CSV
+        </a>
+        <a href="{% url 'export_fuel_consumption_excel' %}?{{ request.GET.urlencode }}" class="inline-flex items-center gap-2 rounded-xl bg-white border border-slate-200 px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+            Excel
+        </a>
+        <a href="{% url 'export_simple_fuel_consumption_pdf' %}" class="inline-flex items-center gap-2 rounded-xl bg-white border border-slate-200 px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+            Simple PDF
+        </a>
+        <span class="ml-auto text-xs text-slate-400 hidden sm:inline-flex items-center gap-1">Landscape • Legal • 12 cols</span>
+    </div>
+</div>
+
+<!-- KPIs -->
+<div class="no-print mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
+        <div class="flex items-center justify-between">
+            <p class="text-[11px] font-bold tracking-widest text-slate-400 uppercase">Total Gasoline</p>
+            <span class="h-8 w-8 rounded-xl bg-amber-50 text-amber-600 grid place-items-center text-xs font-black">G</span>
+        </div>
+        <p class="mt-2 text-2xl font-black tracking-tight text-slate-900">{{ total_gasoline|floatformat:2|intcomma }} <span class="text-sm font-semibold text-slate-500">L</span></p>
+        <div class="mt-3 h-1.5 rounded-full bg-slate-100 overflow-hidden"><div class="h-full w-[35%] rounded-full bg-amber-500"></div></div>
+        <p class="mt-2 text-xs text-slate-500">Heavy equipment</p>
+    </div>
+    <div class="rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-600 to-indigo-700 p-[1px] shadow-glow">
+        <div class="rounded-[15px] bg-white p-5">
+            <div class="flex items-center justify-between">
+                <p class="text-[11px] font-bold tracking-widest text-blue-600 uppercase">Total Diesel</p>
+                <span class="h-8 w-8 rounded-xl bg-blue-600 text-white grid place-items-center text-xs font-black">D</span>
+            </div>
+            <p class="mt-2 text-2xl font-black tracking-tight text-slate-900">{{ total_diesel|floatformat:2|intcomma }} <span class="text-sm font-semibold text-slate-500">L</span></p>
+            <div class="mt-3 h-1.5 rounded-full bg-blue-50 overflow-hidden"><div class="h-full w-[68%] rounded-full bg-blue-600"></div></div>
+            <p class="mt-2 text-xs text-slate-500">Ambulance fleet</p>
+        </div>
+    </div>
+    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
+        <div class="flex items-center justify-between">
+            <p class="text-[11px] font-bold tracking-widest text-slate-400 uppercase">Total Consumed</p>
+            <span class="h-8 w-8 rounded-xl bg-violet-50 text-violet-600 grid place-items-center text-xs font-black">C</span>
+        </div>
+        <p class="mt-2 text-2xl font-black tracking-tight text-slate-900">{{ total_consumed|floatformat:2|intcomma }} <span class="text-sm font-semibold text-slate-500">L</span></p>
+        <div class="mt-3 h-1.5 rounded-full bg-slate-100 overflow-hidden"><div class="h-full w-[54%] rounded-full bg-violet-500"></div></div>
+        <p class="mt-2 text-xs text-slate-500">From tank computation</p>
+    </div>
+    <div class="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-5 shadow-soft">
+        <div class="flex items-center justify-between">
+            <p class="text-[11px] font-bold tracking-widest text-emerald-700 uppercase">Total Amount</p>
+            <span class="h-8 w-8 rounded-xl bg-emerald-600 text-white grid place-items-center text-[11px] font-black">₱</span>
+        </div>
+        <p class="mt-2 text-2xl font-black tracking-tight text-slate-900">₱{{ total_amount|floatformat:2|intcomma }}</p>
+        <div class="mt-3 h-1.5 rounded-full bg-emerald-100 overflow-hidden"><div class="h-full w-[72%] rounded-full bg-emerald-500"></div></div>
+        <p class="mt-2 text-xs text-emerald-700">Liquidation sum</p>
+    </div>
+</div>
+
+<!-- Report Table Card -->
+<div class="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft">
+    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-slate-50/60 px-4 sm:px-6 py-4">
+        <div class="flex items-center gap-3">
+            <span class="hidden sm:inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 text-white">▦</span>
+            <div>
+                <h2 class="text-sm font-black tracking-tight text-slate-900 uppercase">Report Data</h2>
+                <p class="text-xs text-slate-500">
+                    {% if selected_month %}{{ selected_month }} • {% endif %}{% if selected_year %}{{ selected_year }} • {% endif %}{{ vehicles|join:", "|default:"All vehicles" }}
+                </p>
+            </div>
+        </div>
+        <div class="flex items-center gap-2">
+            <span class="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600"><span class="h-2 w-2 rounded-full bg-blue-600"></span> 12 columns</span>
+            <span class="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600">Legal • Landscape</span>
+        </div>
+    </div>
+
+    <div class="overflow-x-auto">
+        <table class="min-w-full text-sm">
+            <thead class="sticky top-0 z-10 bg-slate-900 text-white">
+                <tr class="text-[11px] tracking-wide uppercase">
+                    <th class="px-3 py-3 text-left font-semibold whitespace-nowrap">Date</th>
+                    <th class="px-3 py-3 text-left font-semibold">Ref #</th>
+                    <th class="px-3 py-3 text-left font-semibold">Driver</th>
+                    <th class="px-3 py-3 text-left font-semibold">Purpose</th>
+                    <th class="px-3 py-3 text-left font-semibold">Destination</th>
+                    <th class="px-2 py-3 text-center font-semibold whitespace-nowrap">Start<br>Balance</th>
+                    <th class="px-2 py-3 text-center font-semibold bg-amber-500 text-slate-900 whitespace-nowrap">Add.<br>Gasoline</th>
+                    <th class="px-2 py-3 text-center font-semibold bg-blue-600 text-white whitespace-nowrap">Add.<br>Diesel</th>
+                    <th class="px-2 py-3 text-center font-semibold whitespace-nowrap">Consume</th>
+                    <th class="px-2 py-3 text-center font-semibold whitespace-nowrap">Finish<br>Balance</th>
+                    <th class="px-2 py-3 text-center font-semibold whitespace-nowrap">Price/L</th>
+                    <th class="px-3 py-3 text-center font-semibold whitespace-nowrap">Amount</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for row in report_data %}
+                <tr class="hover:bg-blue-50/50 transition">
+                    <td class="px-3 py-3 whitespace-nowrap font-mono text-xs font-semibold text-slate-900">{{ row.date|date:"m/d/Y" }}</td>
+                    <td class="px-3 py-3 whitespace-nowrap"><span class="inline-flex rounded-full bg-slate-900 px-2.5 py-1 text-[11px] font-bold text-white">#{{ row.reference_number|stringformat:"04d" }}</span></td>
+                    <td class="px-3 py-3 font-medium text-slate-900 max-w-[150px] truncate" title="{{ row.driver_name }}">{{ row.driver_name }}</td>
+                    <td class="px-3 py-3 text-slate-600 max-w-[180px] truncate" title="{{ row.purpose }}">{{ row.purpose }}</td>
+                    <td class="px-3 py-3"><span class="inline-flex rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700">{{ row.destination }}</span></td>
+                    <td class="px-2 py-3 text-center font-mono text-xs">{{ row.starting_balance|floatformat:2|intcomma }}</td>
+                    <td class="px-2 py-3 text-center font-mono text-xs bg-amber-50/60">{{ row.additional_gasoline|floatformat:2|intcomma }}</td>
+                    <td class="px-2 py-3 text-center font-mono text-xs font-semibold text-blue-700 bg-blue-50/40">{{ row.additional_diesel|floatformat:2|intcomma }}</td>
+                    <td class="px-2 py-3 text-center font-mono text-xs font-bold text-violet-700">{{ row.consumed|floatformat:2|intcomma }}</td>
+                    <td class="px-2 py-3 text-center font-mono text-xs">{{ row.finished_balance|floatformat:2|intcomma }}</td>
+                    <td class="px-2 py-3 text-center font-mono text-xs">₱{{ row.price_per_liter|floatformat:2|intcomma }}</td>
+                    <td class="px-3 py-3 text-center font-mono text-xs font-black text-slate-900">₱{{ row.amount|floatformat:2|intcomma }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="12" class="px-6 py-12 text-center">
+                        <div class="mx-auto max-w-sm">
+                            <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">∅</div>
+                            <p class="mt-3 text-sm font-semibold text-slate-700">No records found</p>
+                            <p class="text-sm text-slate-500">Try adjusting month, year, driver or vehicle filters.</p>
+                            <a href="{% url 'fuel_consumption_detailed_report' %}" class="mt-3 inline-flex rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Clear filters</a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+
+                {% if report_data %}
+                <tr class="bg-slate-900 text-white font-bold">
+                    <td colspan="5" class="px-3 py-3 text-right text-xs tracking-widest uppercase">TOTAL</td>
+                    <td class="px-2 py-3 text-center font-mono text-xs"></td>
+                    <td class="px-2 py-3 text-center font-mono text-xs bg-amber-500 text-slate-900">{{ total_gasoline|floatformat:2|intcomma }}</td>
+                    <td class="px-2 py-3 text-center font-mono text-xs bg-blue-600 text-white">{{ total_diesel|floatformat:2|intcomma }}</td>
+                    <td class="px-2 py-3 text-center font-mono text-xs">{{ total_consumed|floatformat:2|intcomma }}</td>
+                    <td class="px-2 py-3 text-center"></td>
+                    <td class="px-2 py-3 text-center"></td>
+                    <td class="px-3 py-3 text-center font-mono text-xs">₱{{ total_amount|floatformat:2|intcomma }}</td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 bg-slate-50/50 px-4 sm:px-6 py-3 text-xs text-slate-500">
+        <span>Showing {{ report_data|length }} row{{ report_data|length|pluralize }} • Totals computed from saved balances</span>
+        <span class="hidden sm:inline">Tip: Use Print for official hard copy • Use Export PDF for signed distribution</span>
+    </div>
+</div>
+
+<!-- Signatures -->
+<div class="no-print mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft text-center">
+        <p class="text-[11px] font-bold tracking-widest text-slate-400 uppercase">Prepared by</p>
+        <div class="mx-auto mt-8 h-px w-48 bg-slate-900"></div>
+        <p class="mt-2 text-sm font-black tracking-tight text-slate-900">GERLAN B. DORONA</p>
+        <p class="text-xs font-semibold tracking-widest text-slate-500 uppercase">MDRRMO Staff</p>
+        <p class="mt-3 text-xs text-slate-400">Date: ___________________</p>
+    </div>
+    <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft text-center">
+        <p class="text-[11px] font-bold tracking-widest text-slate-400 uppercase">Noted by</p>
+        <div class="mx-auto mt-8 h-px w-48 bg-slate-900"></div>
+        <p class="mt-2 text-sm font-black tracking-tight text-slate-900">JHUNAX L. CARDOZA</p>
+        <p class="text-xs font-semibold tracking-widest text-slate-500 uppercase">LDRRMO-III</p>
+        <p class="mt-3 text-xs text-slate-400">Date: ___________________</p>
+    </div>
+</div>
+
+<!-- Print-only fallback (clean table without shadows) -->
+<div class="print-only mt-6">
+    <h2 style="text-align:center; font-weight:800; font-size:18pt; margin:0;">FUEL CONSUMPTION REPORT</h2>
+    <p style="text-align:center; font-size:9pt; color:#64748b; margin:4pt 0 10pt;">Detailed Consumption & Liquidation — {{ selected_vehicle|default:"All Vehicles" }}</p>
+    <table style="width:100%; border-collapse:collapse; font-size:8pt;">
+        <thead>
+            <tr>
+                <th style="border:1px solid #000; padding:4px;">Date</th><th style="border:1px solid #000; padding:4px;">Ref</th><th style="border:1px solid #000; padding:4px;">Driver</th><th style="border:1px solid #000; padding:4px;">Purpose</th><th style="border:1px solid #000; padding:4px;">Destination</th><th style="border:1px solid #000; padding:4px;">Start Bal</th><th style="border:1px solid #000; padding:4px;">Gas</th><th style="border:1px solid #000; padding:4px;">Diesel</th><th style="border:1px solid #000; padding:4px;">Consume</th><th style="border:1px solid #000; padding:4px;">Finish</th><th style="border:1px solid #000; padding:4px;">Price</th><th style="border:1px solid #000; padding:4px;">Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in report_data %}
+            <tr>
+                <td style="border:1px solid #000; padding:3px; text-align:center;">{{ row.date|date:"m/d/Y" }}</td>
+                <td style="border:1px solid #000; padding:3px; text-align:center;">#{{ row.reference_number|stringformat:"04d" }}</td>
+                <td style="border:1px solid #000; padding:3px;">{{ row.driver_name }}</td>
+                <td style="border:1px solid #000; padding:3px;">{{ row.purpose }}</td>
+                <td style="border:1px solid #000; padding:3px;">{{ row.destination }}</td>
+                <td style="border:1px solid #000; padding:3px; text-align:center;">{{ row.starting_balance|floatformat:2|intcomma }}</td>
+                <td style="border:1px solid #000; padding:3px; text-align:center;">{{ row.additional_gasoline|floatformat:2|intcomma }}</td>
+                <td style="border:1px solid #000; padding:3px; text-align:center;">{{ row.additional_diesel|floatformat:2|intcomma }}</td>
+                <td style="border:1px solid #000; padding:3px; text-align:center;">{{ row.consumed|floatformat:2|intcomma }}</td>
+                <td style="border:1px solid #000; padding:3px; text-align:center;">{{ row.finished_balance|floatformat:2|intcomma }}</td>
+                <td style="border:1px solid #000; padding:3px; text-align:center;">{{ row.price_per_liter|floatformat:2|intcomma }}</td>
+                <td style="border:1px solid #000; padding:3px; text-align:center;">{{ row.amount|floatformat:2|intcomma }}</td>
+            </tr>
+            {% endfor %}
+            <tr style="font-weight:800;"><td colspan="6" style="border:1px solid #000; padding:4px; text-align:right;">TOTAL</td><td style="border:1px solid #000; padding:4px; text-align:center;">{{ total_gasoline|floatformat:2|intcomma }}</td><td style="border:1px solid #000; padding:4px; text-align:center;">{{ total_diesel|floatformat:2|intcomma }}</td><td style="border:1px solid #000; padding:4px; text-align:center;">{{ total_consumed|floatformat:2|intcomma }}</td><td style="border:1px solid #000; padding:4px;"></td><td style="border:1px solid #000; padding:4px;"></td><td style="border:1px solid #000; padding:4px; text-align:center;">{{ total_amount|floatformat:2|intcomma }}</td></tr>
+        </tbody>
+    </table>
+    <div style="display:flex; justify-content:space-around; margin-top:24pt; text-align:center;">
+        <div><div style="border-top:1px solid #000; width:200px; margin:16pt auto 4pt;"></div><p style="font-weight:800; margin:0;">GERLAN B. DORONA</p><p style="margin:0; font-size:9pt;">MDRRMO STAFF</p></div>
+        <div><div style="border-top:1px solid #000; width:200px; margin:16pt auto 4pt;"></div><p style="font-weight:800; margin:0;">JHUNAX L. CARDOZA</p><p style="margin:0; font-size:9pt;">LDRRMO-III</p></div>
+    </div>
+</div>
+{% endblock %}

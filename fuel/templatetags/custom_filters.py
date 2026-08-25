@@ -11,9 +11,11 @@ def div(value, arg):
     if value is None or arg is None:
         return 0  # or return an empty string, or any fallback value you'd prefer
     try:
-        return (float(value) / float(arg)) * 100  # Assuming you want a percentage
+        result = float(value) / float(arg)  # Simple division for price per liter calculation
+        return round(result, 2)  # Round to 2 decimal places to avoid floating point precision issues
     except (ValueError, ZeroDivisionError):
         return 0
+
 @register.filter
 def multiply(value, arg):
     try:

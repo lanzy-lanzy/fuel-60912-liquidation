@@ -1,54 +1,34 @@
 {% extends 'base.html' %}
+{% block title %}Welcome — FuelTrack{% endblock %}
 {% block content %}
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #f4f4f9;
-            color: #333;
-        }
-        h1 {
-            color: #4A90E2;
-        }
-        h2 {
-            color: #333;
-        }
-        ul {
-            list-style-type: none;
-            padding: 0;
-        }
-        li {
-            background: #fff;
-            margin: 10px 0;
-            padding: 15px;
-            border-radius: 5px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-        a {
-            color: #4A90E2;
-            text-decoration: none;
-        }
-        a:hover {
-            text-decoration: underline;
-        }
-        .container {
-            max-width: 800px;
-            margin: auto;
-        }
-    </style>
-    <div class="container">
-        <h1>Welcome to fueltracker!</h1>
-        <p>Congratulations! You have successfully set up your Django project using <strong>EasyDjango</strong>.</p>
-        <h2>What to Do Next:</h2>
-        <ul>
-            <li>Explore the <strong>views.py</strong> file in your app directory (<code>fuel/views.py</code>) to customize your application logic.</li>
-            <li>Modify the <strong>urls.py</strong> file in your app (<code>fuel/urls.py</code>) to define your app's URL patterns.</li>
-            <li>Edit the <strong>base.html</strong> file in the <code>templates</code> directory to change your site’s layout and design.</li>
-            <li>Visit the <strong>admin panel</strong> by navigating to <code>/admin</code> after running the development server.</li>
-            <li>Check the official <a href="https://www.djangoproject.com/">Django documentation</a> for more advanced features and customization options.</li>
-        </ul>
-        <h2>Need Help?</h2>
-        <p>If you have any questions or need assistance, feel free to reach out at <a href="mailto:elghaithheni@gmail.com">elghaithheni@gmail.com</a>.</p>
+<div class="mx-auto max-w-3xl">
+    <div class="rounded-[24px] bg-gradient-to-br from-slate-900 to-indigo-900 p-[1px] shadow-card">
+        <div class="rounded-[23px] bg-slate-900 p-8 text-white">
+            <p class="inline-flex rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-bold tracking-widest uppercase">MDRRMO • Dumingag</p>
+            <h1 class="mt-3 text-3xl font-black tracking-tight">Welcome to FuelTrack</h1>
+            <p class="mt-2 text-sm text-blue-100/70">Fleet fuel intelligence for the Municipality of Dumingag — track consumption, reconcile balances & automate liquidation.</p>
+            <div class="mt-6 flex flex-wrap gap-2">
+                <a href="{% url 'dashboard' %}" class="rounded-xl bg-white px-5 py-2.5 text-sm font-bold text-slate-900">Go to Dashboard</a>
+                <a href="{% url 'fuel_new' %}" class="rounded-xl border border-white/20 bg-white/10 px-5 py-2.5 text-sm font-semibold text-white backdrop-blur">New Fuel Entry</a>
+            </div>
+        </div>
     </div>
-{% endblock content %}
+
+    <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
+            <h2 class="text-sm font-black uppercase tracking-tight">Next steps</h2>
+            <ul class="mt-3 space-y-2 text-sm text-slate-600">
+                <li>• Explore <b>Dashboard</b> for live balances</li>
+                <li>• Create entries via <b>Fuel Form</b></li>
+                <li>• Generate <b>Detailed Report</b> for liquidation</li>
+                <li>• Manage <b>Drivers</b> & print <b>Gas Slips</b></li>
+            </ul>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
+            <h2 class="text-sm font-black uppercase tracking-tight">Need help?</h2>
+            <p class="mt-2 text-sm text-slate-600">Admin panel at <code class="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-mono">/admin</code> • Docs: <a href="https://www.djangoproject.com/" class="font-semibold text-blue-600 underline">Django</a></p>
+            <p class="mt-3 text-xs text-slate-400">Built with Tailwind • MDRRMO Dumingag</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,77 @@
+
+{% extends 'base.html' %}
+{% load humanize %}
+{% block title %}Consumption Report — FuelTrack{% endblock %}
+{% block extra_head %}
+<style>@page{size:landscape;margin:0.8cm}@media print{.no-print{display:none!important}.report-card{box-shadow:none!important;border:2px solid #000!important}}</style>
+{% endblock %}
+{% block content %}
+<div class="no-print rounded-2xl border border-slate-200 bg-white p-4 shadow-soft">
+    <form method="get" class="flex flex-wrap gap-3 items-end">
+        <div class="space-y-1"><label class="text-[11px] font-bold tracking-widest text-slate-500 uppercase">Start Date</label><input type="date" name="start_date" value="{{ request.GET.start_date }}" class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:border-blue-500 focus:bg-white outline-none"></div>
+        <div class="space-y-1"><label class="text-[11px] font-bold tracking-widest text-slate-500 uppercase">End Date</label><input type="date" name="end_date" value="{{ request.GET.end_date }}" class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:border-blue-500 focus:bg-white outline-none"></div>
+        <button type="submit" class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-black">Filter</button>
+        <button type="button" onclick="window.print()" class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold hover:bg-slate-50">Print</button>
+    </form>
+</div>
+
+<div class="report-card mt-6 overflow-hidden rounded-2xl border border-slate-900 bg-white shadow-soft">
+    <div class="bg-slate-900 px-6 py-6 text-center text-white">
+        <p class="text-[11px] font-bold tracking-[0.2em] text-blue-200 uppercase">Republic of the Philippines • Province of Zamboanga del Sur</p>
+        <p class="text-xs font-semibold tracking-widest text-white/70 uppercase mt-1">Municipality of Dumingag • Office of the {{ office }}</p>
+        <h1 class="mt-3 text-2xl font-black tracking-tight">FUEL CONSUMPTION REPORT</h1>
+        <p class="mt-1 text-xs text-blue-100/70">Period: {% if request.GET.start_date and request.GET.end_date %}{{ request.GET.start_date }} to {{ request.GET.end_date }}{% else %}All Time{% endif %} • Generated {{ report_date|date:"F d, Y" }}</p>
+    </div>
+
+    <div class="px-4 sm:px-6 py-4">
+        <div class="overflow-x-auto rounded-xl border border-slate-200">
+            <table class="w-full border-collapse text-xs">
+                <thead>
+                    <tr class="bg-slate-900 text-white">
+                        <th rowspan="2" class="border border-slate-700 px-2 py-2 font-semibold">DATE</th>
+                        <th rowspan="2" class="border border-slate-700 px-2 py-2 font-semibold">VEHICLE</th>
+                        <th rowspan="2" class="border border-slate-700 px-2 py-2 font-semibold">PLATE #</th>
+                        <th rowspan="2" class="border border-slate-700 px-2 py-2 font-semibold">ACTIVITIES</th>
+                        <th rowspan="2" class="border border-slate-700 px-2 py-2 font-semibold">DESTINATION</th>
+                        <th rowspan="2" class="border border-slate-700 px-2 py-2 font-semibold">DIST KM</th>
+                        <th colspan="2" class="border border-slate-700 px-2 py-1 font-semibold bg-slate-800">AM</th>
+                        <th colspan="2" class="border border-slate-700 px-2 py-1 font-semibold bg-slate-800">PM</th>
+                        <th rowspan="2" class="border border-slate-700 px-2 py-2 font-semibold">TOTAL HRS</th>
+                        <th rowspan="2" class="border border-slate-700 px-2 py-2 font-semibold">START BAL</th>
+                        <th colspan="3" class="border border-slate-700 px-2 py-1 font-semibold bg-blue-600">ADDITIONAL</th>
+                        <th rowspan="2" class="border border-slate-700 px-2 py-2 font-semibold">CONSUME</th>
+                        <th rowspan="2" class="border border-slate-700 px-2 py-2 font-semibold">FINISH BAL</th>
+                    </tr>
+                    <tr class="bg-slate-900 text-white">
+                        <th class="border border-slate-700 px-2 py-1 font-semibold">DEP</th><th class="border border-slate-700 px-2 py-1 font-semibold">ARR</th><th class="border border-slate-700 px-2 py-1 font-semibold">DEP</th><th class="border border-slate-700 px-2 py-1 font-semibold">ARR</th><th class="border border-slate-700 px-2 py-1 font-semibold bg-amber-500 text-slate-900">GAS</th><th class="border border-slate-700 px-2 py-1 font-semibold">DIESEL</th><th class="border border-slate-700 px-2 py-1 font-semibold">LUB</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200">
+                    {% for entry in entries %}
+                    <tr class="hover:bg-slate-50">
+                        <td class="border border-slate-200 px-2 py-1.5 text-center font-mono text-[11px]">{{ entry.date|date:"m/d/Y" }}</td>
+                        <td class="border border-slate-200 px-2 py-1.5 text-center text-[11px] font-medium">{{ entry.vehicle }}</td>
+                        <td class="border border-slate-200 px-2 py-1.5 text-center text-[11px]">{% if entry.vehicle == "Ambulance L300" %}L300{% elif entry.vehicle == "Ambulance Province" %}PROV{% elif entry.vehicle == "Ambulance DOH" %}DOH{% elif entry.vehicle == "Backhoe" %}BCK{% elif entry.vehicle == "Dumptruck" %}DMP{% else %}—{% endif %}</td>
+                        <td class="border border-slate-200 px-2 py-1.5 text-[11px]">{{ entry.purpose }}</td>
+                        <td class="border border-slate-200 px-2 py-1.5 text-[11px]">{{ entry.get_destination_display }}</td>
+                        <td class="border border-slate-200 px-2 py-1.5 text-center">{% if entry.destination == "dipolog" %}85{% elif entry.destination == "cagayan" %}120{% elif entry.destination == "margosatubig" %}45{% elif entry.destination == "pagadian_city" %}25{% elif entry.destination == "ozamiz_city" %}65{% elif entry.destination == "zamboanga_city" %}150{% elif entry.destination == "davao_city" %}450{% elif entry.destination == "ipil" %}95{% elif entry.destination == "sindangan" %}35{% else %}15{% endif %}</td>
+                        <td class="border border-slate-200 px-2 py-1.5 text-center">08:00</td><td class="border border-slate-200 px-2 py-1.5 text-center">10:00</td><td class="border border-slate-200 px-2 py-1.5 text-center">14:00</td><td class="border border-slate-200 px-2 py-1.5 text-center">16:00</td>
+                        <td class="border border-slate-200 px-2 py-1.5 text-center">6</td><td class="border border-slate-200 px-2 py-1.5 text-center">100.00</td>
+                        <td class="border border-slate-200 px-2 py-1.5 text-center bg-amber-50">{% if entry.vehicle == "Backhoe" or entry.vehicle == "Dumptruck" %}{{ entry.total_liters|floatformat:2|intcomma }}{% else %}—{% endif %}</td>
+                        <td class="border border-slate-200 px-2 py-1.5 text-center bg-blue-50 text-blue-700 font-semibold">{% if "Ambulance" in entry.vehicle %}{{ entry.total_liters|floatformat:2|intcomma }}{% else %}—{% endif %}</td>
+                        <td class="border border-slate-200 px-2 py-1.5 text-center">2.5</td>
+                        <td class="border border-slate-200 px-2 py-1.5 text-center font-mono font-bold">{{ entry.total_liters|floatformat:2|intcomma }}</td>
+                        <td class="border border-slate-200 px-2 py-1.5 text-center">100.00</td>
+                    </tr>
+                    {% empty %}<tr><td colspan="16" class="border border-slate-200 px-6 py-10 text-center text-slate-500">No records found.</td></tr>{% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="mt-6 grid grid-cols-2 gap-8 text-center">
+            <div><p class="text-[11px] font-bold tracking-widest text-slate-400 uppercase">Prepared by</p><div class="mx-auto mt-6 h-px w-40 bg-slate-900"></div><p class="mt-2 text-sm font-black">GERLAN DORONA</p><p class="text-xs tracking-widest text-slate-500 uppercase">MDRRMO Clerk</p></div>
+            <div><p class="text-[11px] font-bold tracking-widest text-slate-400 uppercase">Noted by</p><div class="mx-auto mt-6 h-px w-40 bg-slate-900"></div><p class="mt-2 text-sm font-black">_______________</p><p class="text-xs tracking-widest text-slate-500 uppercase">Municipal Mayor</p></div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,26 +1,42 @@
 {% extends "base.html" %}
-{% load custom_filters %}
-
+{% load custom_filters  humanize %}
+{% block title %}Drivers — FuelTrack{% endblock %}
 {% block content %}
-<div class="flex justify-between items-center mb-6">
-    <h2 class="text-2xl font-bold">Drivers</h2>
-    <a href="{% url 'driver_create' %}" 
-       class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
-        + Add Driver
+<div class="flex flex-wrap items-start justify-between gap-4">
+    <div>
+        <h1 class="text-2xl font-black tracking-tight text-slate-900">Drivers</h1>
+        <p class="text-sm text-slate-500">Fleet personnel • tap a card for performance & history</p>
+    </div>
+    <a href="{% url 'driver_new' %}" class="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow hover:bg-black">
+        <span class="h-6 w-6 rounded-lg bg-white/15 grid place-items-center">+</span> Add Driver
     </a>
 </div>
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+
+{% if drivers %}
+<div class="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
     {% for driver in drivers %}
-    <a href="{% url 'driver_detail' driver.pk %}" 
-       class="bg-white p-4 rounded-lg shadow hover:shadow-md transition-shadow">
-        <h3 class="text-lg font-medium">{{ driver.name }}</h3>
-        <p class="text-gray-600 mt-2">
-            Total Fuel Used: 
-            <span class="text-blue-600 font-medium">
-                {{ driver.fuelconsumption_set.all|sum_attr:'total_liters' }}L
-            </span>
-        </p>
+    <a href="{% url 'driver_detail' driver.pk %}" class="group rounded-2xl border border-slate-200 bg-white p-5 shadow-soft hover:shadow-card hover:-translate-y-0.5 transition">
+        <div class="flex items-start justify-between gap-3">
+            <span class="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white grid place-items-center font-black">{{ driver.name|slice:":1" }}</span>
+            <span class="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600">{{ driver.vehicle|default:"Fleet" }}</span>
+        </div>
+        <h3 class="mt-3 text-base font-bold text-slate-900 group-hover:text-blue-700">{{ driver.name }}</h3>
+        <p class="text-xs text-slate-500">{{ driver.fuelconsumption_set.count }} trip{{ driver.fuelconsumption_set.count|pluralize }}</p>
+        <div class="mt-4 rounded-xl border border-slate-100 bg-slate-50 p-3">
+            <p class="text-[11px] font-bold tracking-widest text-slate-400 uppercase">Total Fuel Used</p>
+            <p class="text-lg font-black text-blue-700">{{ driver.fuelconsumption_set.all|sum_attr:'total_liters'|floatformat:2|intcomma }}<span class="text-sm font-semibold text-slate-500"> L</span></p>
+            <div class="mt-2 h-1.5 rounded-full bg-white border border-slate-200 overflow-hidden"><div class="h-full rounded-full bg-blue-600 w-[55%] group-hover:w-[68%] transition-all"></div></div>
+        </div>
+        <span class="mt-3 inline-flex text-xs font-semibold text-slate-600 group-hover:text-slate-900">View performance →</span>
     </a>
     {% endfor %}
 </div>
+{% else %}
+<div class="mt-6 rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center shadow-soft">
+    <div class="mx-auto h-12 w-12 rounded-2xl bg-slate-100 grid place-items-center text-slate-400">◌</div>
+    <p class="mt-3 text-sm font-semibold text-slate-700">No drivers yet</p>
+    <p class="text-sm text-slate-500">Add your first driver to start tracking fuel consumption.</p>
+    <a href="{% url 'driver_new' %}" class="mt-4 inline-flex rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white">Add Driver</a>
+</div>
+{% endif %}
 {% endblock %}

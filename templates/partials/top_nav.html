@@ -1,11 +1,133 @@
-<nav class="bg-blue-600 text-white p-4">
-    <div class="container mx-auto flex justify-between items-center">
-        <a href="{% url 'dashboard' %}" class="text-2xl font-bold">FuelTrack</a>
-        <div class="space-x-4">
-            <a href="{% url 'dashboard' %}" class="hover:text-blue-200">Dashboard</a>
-            <a href="{% url 'driver_list' %}" class="hover:text-blue-200">Drivers</a>
-            <a href="{% url 'fuel_report' %}" class="hover:text-blue-200">Reports</a>
-            <a href="{% url 'fuelconsumption_create' %}" class="bg-green-500 px-3 py-2 rounded hover:bg-green-600">New Entry</a>
+<nav class="sticky top-0 z-50 border-b border-slate-200/60 bg-white/80 backdrop-blur-xl supports-[backdrop-filter]:bg-white/70">
+    <div class="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8">
+        <div class="flex h-[64px] items-center justify-between gap-6">
+            <!-- brand -->
+            <div class="flex items-center gap-3">
+                <a href="{% url 'dashboard' %}" class="flex items-center gap-3">
+                    <span class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-glow">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h13a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z"/><path d="M16 11h3a2 2 0 0 1 2 2v1a2 2 0 0 1-2 2h-3"/><path d="M7 11h5"/><path d="M7 15h3"/></svg>
+                    </span>
+                    <span class="leading-none">
+                        <span class="block text-[15px] font-black tracking-tight text-slate-900">FuelTrack</span>
+                        <span class="block text-[11px] font-semibold tracking-[0.14em] text-slate-500 uppercase -mt-0.5">MDRRMO • Dumingag</span>
+                    </span>
+                </a>
+                <span class="hidden lg:inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 ml-2">
+                    <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span> Live
+                </span>
+            </div>
+
+            <!-- desktop nav -->
+            <div class="hidden lg:flex items-center gap-1">
+                <a href="{% url 'dashboard' %}" class="px-3 py-2 rounded-xl text-sm font-medium transition {% if request.resolver_match.url_name == 'dashboard' %} bg-slate-900 text-white shadow {% else %} text-slate-600 hover:bg-slate-100 hover:text-slate-900 {% endif %}">Dashboard</a>
+                <a href="{% url 'driver_list' %}" class="px-3 py-2 rounded-xl text-sm font-medium transition {% if 'driver' in request.resolver_match.url_name %} bg-slate-900 text-white shadow {% else %} text-slate-600 hover:bg-slate-100 hover:text-slate-900 {% endif %}">Drivers</a>
+                <a href="{% url 'trip_schedule' %}" class="px-3 py-2 rounded-xl text-sm font-medium transition {% if request.resolver_match.url_name == 'trip_schedule' %} bg-slate-900 text-white shadow {% else %} text-slate-600 hover:bg-slate-100 hover:text-slate-900 {% endif %}" >Trips</a>
+
+                <!-- Reports dropdown -->
+                <div class="relative">
+                    <button data-dropdown-toggle="reports-dd" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900">
+                        Reports
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+                    </button>
+                    <div id="reports-dd" data-dropdown class="hidden absolute left-0 mt-2 w-[320px] rounded-2xl border border-slate-200 bg-white p-2 shadow-card">
+                        <div class="px-3 py-2">
+                            <p class="text-[11px] font-bold tracking-widest text-slate-400 uppercase">Reports & Exports</p>
+                        </div>
+                        <div class="grid grid-cols-1 gap-1">
+                            <a href="{% url 'fuel_report' %}" class="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-slate-50">
+                                <span class="h-8 w-8 rounded-lg bg-blue-50 text-blue-700 grid place-items-center">◍</span>
+                                <span class="text-sm"><span class="block font-semibold text-slate-900 leading-none">Basic Report</span><span class="text-xs text-slate-500">Weekly overview</span></span>
+                            </a>
+                            <a href="{% url 'fuel_consumption_report' %}" class="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-slate-50">
+                                <span class="h-8 w-8 rounded-lg bg-indigo-50 text-indigo-700 grid place-items-center">▦</span>
+                                <span class="text-sm"><span class="block font-semibold text-slate-900 leading-none">Consumption Report</span><span class="text-xs text-slate-500">Office header & print</span></span>
+                            </a>
+                            <a href="{% url 'fuel_consumption_detailed_report' %}" class="flex items-center gap-3 rounded-xl px-3 py-2.5 bg-blue-600 text-white shadow">
+                                <span class="h-8 w-8 rounded-lg bg-white/15 grid place-items-center">⬢</span>
+                                <span class="text-sm"><span class="block font-bold leading-none">Detailed Consumption</span><span class="text-xs text-blue-100">Balances & liquidation</span></span>
+                            </a>
+                            <a href="{% url 'detailed_fuel_consumption_report' %}" class="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-slate-50">
+                                <span class="h-8 w-8 rounded-lg bg-amber-50 text-amber-700 grid place-items-center">⧉</span>
+                                <span class="text-sm"><span class="block font-semibold text-slate-900 leading-none">Detailed (Alt)</span><span class="text-xs text-slate-500">Alternate detailed view</span></span>
+                            </a>
+                            <div class="my-1 border-t border-slate-100"></div>
+                            <a href="{% url 'liquidation_report' %}" class="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-slate-50">
+                                <span class="h-8 w-8 rounded-lg bg-emerald-50 text-emerald-700 grid place-items-center">₱</span>
+                                <span class="text-sm"><span class="block font-semibold text-slate-900 leading-none">Liquidation Report</span><span class="text-xs text-slate-500">Cash advance & ORs</span></span>
+                            </a>
+                            <a href="{% url 'saved_liquidation_reports' %}" class="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-slate-50">
+                                <span class="h-8 w-8 rounded-lg bg-slate-50 text-slate-700 grid place-items-center">≡</span>
+                                <span class="text-sm"><span class="block font-semibold text-slate-900 leading-none">Saved Liquidations</span><span class="text-xs text-slate-500">History & reprint</span></span>
+                            </a>
+                            <a href="{% url 'gas_slip_print' %}" class="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-slate-50">
+                                <span class="h-8 w-8 rounded-lg bg-violet-50 text-violet-700 grid place-items-center">✦</span>
+                                <span class="text-sm"><span class="block font-semibold text-slate-900 leading-none">Gas Slips</span><span class="text-xs text-slate-500">Print all slips</span></span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <a href="{% url 'fuel_new' %}" class="hidden xl:inline-flex px-3 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900">Fuel Form</a>
+
+                <!-- Cash Vouchers -->
+                <div class="relative">
+                    <button data-dropdown-toggle="cash-dd" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900">
+                        Cash
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+                    </button>
+                    <div id="cash-dd" data-dropdown class="hidden absolute right-0 mt-2 w-[300px] rounded-2xl border border-slate-200 bg-white p-2 shadow-card">
+                        <div class="px-3 py-2">
+                            <p class="text-[11px] font-bold tracking-widest text-slate-400 uppercase">Petty Cash & RER</p>
+                            <p class="text-xs text-slate-500">Separate from fuel — image+RER one A4, PCV separate A4</p>
+                        </div>
+                        <a href="{% url 'pcv_list' %}" class="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-slate-50">
+                            <span class="h-8 w-8 rounded-lg bg-amber-50 text-amber-700 grid place-items-center">₱</span>
+                            <span class="text-sm"><span class="block font-semibold text-slate-900 leading-none">Petty Cash Voucher</span><span class="text-xs text-slate-500">Part I/II • A4 attachment</span></span>
+                        </a>
+                        <a href="{% url 'rer_list' %}" class="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-slate-50">
+                            <span class="h-8 w-8 rounded-lg bg-blue-50 text-blue-700 grid place-items-center">≡</span>
+                            <span class="text-sm"><span class="block font-semibold text-slate-900 leading-none">RER + Image</span><span class="text-xs text-slate-500">Image top + RER bottom — 1 A4</span></span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- actions -->
+            <div class="flex items-center gap-2">
+                <a href="{% url 'fuel_new' %}" class="hidden sm:inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow hover:bg-black transition">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+                    New Entry
+                </a>
+                <a href="{% url 'fuel_new' %}" class="sm:hidden inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 text-white shadow">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+                </a>
+                <button data-menu-toggle="mobile-nav" class="lg:hidden inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- mobile nav -->
+        <div id="mobile-nav" class="hidden lg:hidden pb-4">
+            <div class="rounded-2xl border border-slate-200 bg-white p-2 shadow-card">
+                <a href="{% url 'dashboard' %}" class="flex px-3 py-2.5 rounded-xl text-sm font-medium hover:bg-slate-50">Dashboard</a>
+                <a href="{% url 'driver_list' %}" class="flex px-3 py-2.5 rounded-xl text-sm font-medium hover:bg-slate-50">Drivers</a>
+                <a href="{% url 'trip_schedule' %}" class="flex px-3 py-2.5 rounded-xl text-sm font-medium hover:bg-slate-50">Trip Schedule</a>
+                <div class="my-1 border-t border-slate-100"></div>
+                <p class="px-3 py-1.5 text-[11px] font-bold tracking-widest text-slate-400 uppercase">Reports</p>
+                <a href="{% url 'fuel_report' %}" class="flex px-3 py-2 rounded-xl text-sm hover:bg-slate-50">Basic Report</a>
+                <a href="{% url 'fuel_consumption_report' %}" class="flex px-3 py-2 rounded-xl text-sm hover:bg-slate-50">Consumption Report</a>
+                <a href="{% url 'fuel_consumption_detailed_report' %}" class="flex px-3 py-2 rounded-xl text-sm bg-slate-900 text-white">Detailed Consumption</a>
+                <a href="{% url 'detailed_fuel_consumption_report' %}" class="flex px-3 py-2 rounded-xl text-sm hover:bg-slate-50">Detailed (Alt)</a>
+                <a href="{% url 'liquidation_report' %}" class="flex px-3 py-2 rounded-xl text-sm hover:bg-slate-50">Liquidation Report</a>
+                <a href="{% url 'saved_liquidation_reports' %}" class="flex px-3 py-2 rounded-xl text-sm hover:bg-slate-50">Saved Liquidations</a>
+                <a href="{% url 'gas_slip_print' %}" class="flex px-3 py-2 rounded-xl text-sm hover:bg-slate-50">Gas Slips</a>
+                <div class="my-1 border-t border-slate-100"></div>
+                <p class="px-3 py-1.5 text-[11px] font-bold tracking-widest text-slate-400 uppercase">Petty Cash & RER</p>
+                <a href="{% url 'pcv_list' %}" class="flex px-3 py-2 rounded-xl text-sm hover:bg-slate-50">Petty Cash Voucher</a>
+                <a href="{% url 'rer_list' %}" class="flex px-3 py-2 rounded-xl text-sm hover:bg-slate-50">RER + Image (1 A4)</a>
+                <a href="{% url 'fuel_new' %}" class="mt-2 flex px-3 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold justify-center">+ New Fuel Entry</a>
+            </div>
         </div>
     </div>
 </nav>

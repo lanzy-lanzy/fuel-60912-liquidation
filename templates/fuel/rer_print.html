@@ -1,0 +1,219 @@
+{% load humanize %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RER — {{ receipt.rer_no|default:receipt.pk }}</title>
+<style>
+    @page { size: A4 portrait; margin: 6mm; }
+    * { box-sizing: border-box; }
+    body { margin:0; padding:0; background:#fff; font-family: Arial, Helvetica, sans-serif; color:#000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .no-print { max-width: 210mm; margin: 10px auto; display:flex; justify-content:flex-end; gap:8px; }
+    .no-print a, .no-print button { font-family: Inter, sans-serif; font-size:13px; padding:8px 14px; border-radius:8px; text-decoration:none; cursor:pointer; }
+    .btn-print{ background:#0f172a; color:#fff; border:1px solid #0f172a; }
+    .btn-back{ background:#fff; color:#0f172a; border:1px solid #e2e8f0; }
+    @media print { .no-print{display:none !important} .sheet{border:none !important; box-shadow:none !important} }
+
+    .sheet {
+        width: auto;
+        margin: 0 auto;
+        background: transparent;
+        display:flex;
+        flex-direction:column;
+        align-items:center;
+        gap: 6mm;
+        padding-top: 4mm;
+    }
+    /* Image on top — 3.5x5 NOT stretched, centered, natural size */
+    .img-wrap {
+        width: auto;
+        max-width: 88.9mm; /* 3.5" */
+        max-height: 66mm;
+        border: 1pt solid #000;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        overflow:hidden;
+        background:#fff;
+        padding: 0;
+        box-shadow: none;
+    }
+    .img-wrap img {
+        max-width: 88.9mm;
+        max-height: 66mm;
+        width:auto !important;
+        height:auto !important;
+        object-fit: contain;
+        display:block;
+    }
+    .img-placeholder {
+        width:100%; height:100%;
+        display:flex; align-items:center; justify-content:center;
+        color:#94a3b8; font-size:9pt; text-align:center;
+        background: repeating-linear-gradient(45deg, #f8fafc, #f8fafc 6px, #f1f5f9 6px, #f1f5f9 12px);
+    }
+
+    /* RER form — 3.5" width (88.9mm) index, centered, compact, no blank */
+    .rer {
+        width: 88.9mm; /* 3.5" */
+        height: auto;
+        margin: 0 auto;
+        border: 1.2pt solid #000;
+        background:#fff;
+        box-shadow: none;
+        display:block;
+        overflow:hidden;
+    }
+    @media print {
+        .sheet{ background:transparent !important; }
+        .img-wrap{ box-shadow:none !important; border:0.8pt solid #000 !important; }
+        .rer{ box-shadow:none !important; }
+    }
+    .rer-title {
+        text-align:center;
+        font-weight:800;
+        font-size:7.5pt;
+        letter-spacing:0.06em;
+        text-transform:uppercase;
+        padding:3pt 0;
+        border-bottom:1.2pt solid #000;
+    }
+    .rer-head {
+        display:grid;
+        grid-template-columns: 1fr 1fr;
+        border-bottom:1px solid #000;
+        font-size:6.5pt;
+    }
+    .rer-head > div { padding: 2pt 4pt; }
+    .rer-head > div:first-child { border-right:1px solid #000; }
+    .rer-head p { margin:1pt 0; }
+    .ul { border-bottom:0.7pt solid #000; display:inline-block; min-width: 28mm; padding:0 1pt; }
+    .ul.wide { min-width: 32mm; }
+    .ul.full { min-width: 38mm; }
+    .rer-body {
+        padding: 4pt 5pt 3pt;
+        font-size:6.5pt;
+        line-height:1.28;
+        flex:1;
+        display:flex;
+        flex-direction:column;
+    }
+    .rer-body .line { border-bottom:0.7pt solid #000; width:100%; height:7pt; margin:1pt 0; }
+    .rer-body .small-ital { font-size:5.5pt; color:#334155; font-style:italic; text-align:center; margin:0 0 2pt; }
+    .payee-witness {
+        border-top:1pt solid #000;
+        margin-top:3pt;
+        flex-shrink:0;
+    }
+    .pw-head {
+        text-align:center;
+        font-weight:800;
+        font-size:6.5pt;
+        letter-spacing:0.06em;
+        text-transform:uppercase;
+        padding:2pt 0;
+        border-bottom:1pt double #000;
+        background:#f8fafc;
+    }
+    .pw-grid {
+        display:block;
+        font-size:6.3pt;
+    }
+    .pw-grid > div { padding: 2pt 4pt; }
+    .pw-line { display:flex; gap:3pt; margin:1.2pt 0; }
+    .pw-line span:first-child { white-space:nowrap; font-weight:600; font-size:6pt; }
+    .pw-line .ul { flex:1; min-width:0; }
+    .sig-sep { border-top:0.7pt solid #000; margin-top:4pt; padding-top:4pt; }
+</style>
+</head>
+<body>
+<div class="no-print">
+    <button onclick="window.print()" class="btn-print">Print</button>
+    <a href="{% url 'rer_detail' receipt.pk %}" class="btn-back">Back</a>
+    {% if receipt.petty_cash_voucher %}<a href="{% url 'pcv_print' receipt.petty_cash_voucher.pk %}" target="_blank" class="btn-back">Print PCV (separate A4)</a>{% endif %}
+</div>
+
+<div class="sheet">
+    <!-- Image on top -->
+    <div class="img-wrap">
+        {% if receipt.attached_image %}
+            <img src="{{ receipt.attached_image.url }}" alt="RER Attachment">
+        {% else %}
+            <div class="img-placeholder">
+                <div>
+                    <p style="font-weight:700; color:#334155;">No image attached</p>
+                    <p>Upload an image when creating/editing the RER — it will appear here on top when printed.</p>
+                    <p style="margin-top:6pt; font-size:7pt; color:#64748b;">Recommended: JPG/PNG, clear photo of receipt/OR</p>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- RER at bottom -->
+    <div class="rer">
+        <div class="rer-title">Reimbursement Expense Receipt</div>
+        <div class="rer-head">
+            <div>
+                <p>Entity Name: <span class="ul">{{ receipt.entity_name|default:"" }}</span></p>
+                <p>Date: <span class="ul">{{ receipt.receipt_date|date:"m/d/Y" }}</span></p>
+            </div>
+            <div>
+                <p>Fund Cluster: <span class="ul">{{ receipt.fund_cluster|default:"" }}</span></p>
+                <p>RER No. <span class="ul">{{ receipt.rer_no|default:"" }}</span></p>
+            </div>
+        </div>
+
+        <div class="rer-body">
+            <p style="text-align:center; font-weight:600; margin:2pt 0 6pt;">RECEIVED from <span class="ul wide">{{ receipt.received_from_name|default:"" }}</span> <span style="font-size:6.5pt;">(Name)</span> <span class="ul">{{ receipt.received_from_designation|default:"" }}</span> <span style="font-size:6.5pt;">(Official Designation)</span> the amount of</p>
+            <p><span class="ul full">{{ receipt.amount_in_words|default:"" }}</span> <span style="font-size:6.5pt;">(In Words)</span> <span class="ul" style="min-width:22mm; text-align:right;">P {{ receipt.amount_in_figures|floatformat:2|intcomma }}</span> <span style="font-size:6.5pt;">(In Figures)</span></p>
+            <!-- duplicate line as in form (in Words / In Figures / of ...) -->
+            <p style="margin-top:2pt;">of <span class="ul full" style="min-width: 80mm; font-size:6.5pt; color:#1e3a8a;">{{ receipt.amount_in_words|default:"" }}</span> <span style="font-size:6.5pt;">(In Words)</span></p>
+            <p style="margin-top:4pt;">in payment for <span class="ul full" style="min-width: 130mm;">{{ receipt.in_payment_for|default:"" }}</span></p>
+            <p class="small-ital">(Payments for subsistence, services, etc.)</p>
+
+            <div style="border-bottom:0.7pt solid #000; margin:3pt 0; height:6pt;"></div>
+            <p class="small-ital">rental or transportation should show inclusive dates,</p>
+            <p class="small-ital">purpose, distance, inclusive points of travel, etc.)</p>
+            <div style="border-bottom:0.7pt solid #000; margin:3pt 0; height:6pt;"></div>
+
+            <!-- PAYEE — single column, no blank right half -->
+            <div class="payee-witness">
+                <div class="pw-head">Payee</div>
+                <div class="pw-grid">
+                    <div>
+                        <div class="pw-line"><span>Signature</span> <span class="ul"></span></div>
+                        <div class="pw-line"><span>Name</span> <span class="ul">{{ receipt.payee_signature_name|default:"" }}</span></div>
+                        <div class="pw-line"><span>Address</span> <span class="ul">{{ receipt.payee_address|default:"" }}</span></div>
+                        <div class="pw-line"><span>Residence Cert No.</span> <span class="ul">{{ receipt.payee_residence_cert_no|default:"" }}</span></div>
+                        <div class="pw-line"><span>Date of Issue</span> <span class="ul">{{ receipt.payee_residence_date|date:"m/d/Y"|default:"" }}</span></div>
+                        <div class="pw-line"><span>Place of Issue</span> <span class="ul">{{ receipt.payee_residence_place|default:"" }}</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- WITNESS — single column, no blank -->
+            <div class="payee-witness" style="border-top:1pt solid #000;">
+                <div class="pw-head">Witness</div>
+                <div class="pw-grid">
+                    <div>
+                        <div class="pw-line"><span>Signature</span> <span class="ul"></span></div>
+                        <div class="pw-line"><span>Name</span> <span class="ul">{{ receipt.witness_signature_name|default:"" }}</span></div>
+                        <div class="pw-line"><span>Address</span> <span class="ul">{{ receipt.witness_address|default:"" }}</span></div>
+                        <div class="pw-line"><span>Residence Cert No.</span> <span class="ul">{{ receipt.witness_residence_cert_no|default:"" }}</span></div>
+                        <div class="pw-line"><span>Date of Issue</span> <span class="ul">{{ receipt.witness_residence_date|date:"m/d/Y"|default:"" }}</span></div>
+                        <div class="pw-line"><span>Place of Issue</span> <span class="ul">{{ receipt.witness_residence_place|default:"" }}</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if receipt.petty_cash_voucher %}
+    <p style="text-align:center; font-size:7pt; color:#475569; margin-top:4mm;">— Attached to PCV No. {{ receipt.petty_cash_voucher.voucher_no|default:receipt.petty_cash_voucher.pk }} (separate A4 print via PCV Print) —</p>
+    {% endif %}
+</div>
+
+<script>if(window.location.search.includes('autoprint')) window.print();</script>
+</body>
+</html>

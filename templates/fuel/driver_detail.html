@@ -1,47 +1,74 @@
+
 {% extends "base.html" %}
-
+{% load humanize %}
+{% block title %}{{ driver.name }} — FuelTrack{% endblock %}
 {% block content %}
-<div class="mb-6">
-    <h2 class="text-2xl font-bold">{{ driver.name }}'s Performance</h2>
-    <a href="{% url 'driver_list' %}" class="text-blue-600 hover:text-blue-800">← Back to Drivers</a>
+<a href="{% url 'driver_list' %}" class="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg> Back to Drivers
+</a>
+
+<div class="mt-4 rounded-[24px] bg-gradient-to-br from-slate-900 to-indigo-900 p-[1px] shadow-card">
+    <div class="rounded-[23px] bg-slate-900 p-6 sm:p-8 flex flex-wrap gap-6 items-center">
+        <span class="h-14 w-14 rounded-2xl bg-white text-slate-900 grid place-items-center text-xl font-black">{{ driver.name|slice:":1" }}</span>
+        <div>
+            <h1 class="text-2xl font-black tracking-tight text-white">{{ driver.name }}'s Performance</h1>
+            <p class="text-sm text-blue-100/70">{{ driver.vehicle|default:"Fleet vehicle" }} • {{ consumption_history|length }} record{{ consumption_history|length|pluralize }}</p>
+        </div>
+        <div class="ml-auto flex gap-2">
+            <a href="{% url 'fuel_new' %}" class="rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-slate-900">New Entry</a>
+            <a href="{% url 'trip_schedule' %}?driver={{ driver.pk }}" class="rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white backdrop-blur">Trips</a>
+        </div>
+    </div>
 </div>
 
-<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-    <div class="bg-white p-4 rounded-lg shadow">
-        <h3 class="text-gray-500 text-sm">Total Trips</h3>
-        <p class="text-2xl font-bold text-green-600">{{ total_trips }}</p>
+<div class="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
+        <p class="text-[11px] font-bold tracking-widest text-slate-400 uppercase">Total Trips</p>
+        <p class="mt-2 text-3xl font-black text-slate-900">{{ total_trips|intcomma }}</p>
+        <p class="text-xs text-slate-500">Across all destinations</p>
     </div>
-    <div class="bg-white p-4 rounded-lg shadow">
-        <h3 class="text-gray-500 text-sm">Total Fuel Used</h3>
-        <p class="text-2xl font-bold text-blue-600">{{ total_used }}L</p>
+    <div class="rounded-2xl border border-blue-200 bg-white p-5 shadow-soft">
+        <p class="text-[11px] font-bold tracking-widest text-blue-600 uppercase">Total Fuel Used</p>
+        <p class="mt-2 text-3xl font-black text-blue-700">{{ total_used|floatformat:2|intcomma }}<span class="text-base font-semibold text-slate-500"> L</span></p>
+        <div class="mt-2 h-1.5 rounded-full bg-slate-100 overflow-hidden"><div class="h-full w-[72%] bg-blue-600"></div></div>
     </div>
-    <div class="bg-white p-4 rounded-lg shadow">
-        <h3 class="text-gray-500 text-sm">Avg per Trip</h3>
-        <p class="text-2xl font-bold text-purple-600">{{ average_per_trip }}L</p>
+    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
+        <p class="text-[11px] font-bold tracking-widest text-slate-400 uppercase">Avg per Trip</p>
+        <p class="mt-2 text-3xl font-black text-slate-900">{{ average_per_trip|floatformat:2|intcomma }}<span class="text-base font-semibold text-slate-500"> L</span></p>
+        <p class="text-xs text-slate-500">Efficiency metric</p>
     </div>
 </div>
 
-<h3 class="text-xl font-bold mb-4">Consumption History</h3>
-<div class="bg-white rounded-lg shadow overflow-hidden">
-    <table class="w-full">
-        <thead class="bg-gray-50">
-            <tr>
-                <th class="px-4 py-2 text-left">Date</th>
-                <th class="px-4 py-2 text-left">Trips</th>
-                <th class="px-4 py-2 text-left">Liters</th>
-                <th class="px-4 py-2 text-left">Cost</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for entry in consumption_history %}
-            <tr class="border-t hover:bg-gray-50">
-                <td class="px-4 py-2">{{ entry.date }}</td>
-                <td class="px-4 py-2">{{ entry.number_of_trips }}</td>
-                <td class="px-4 py-2 text-blue-600">{{ entry.total_liters }}L</td>
-                <td class="px-4 py-2 text-green-600">₱{{ entry.cost }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<div class="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft">
+    <div class="border-b border-slate-100 px-5 py-4 flex items-center justify-between">
+        <h2 class="text-sm font-black uppercase tracking-tight">Consumption History</h2>
+        <span class="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold">{{ consumption_history|length }} rows</span>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead class="bg-slate-50 text-[11px] font-bold tracking-widest text-slate-500 uppercase">
+                <tr>
+                    <th class="px-4 py-3 text-left">Date</th>
+                    <th class="px-4 py-3 text-left">Destination</th>
+                    <th class="px-4 py-3 text-center">Trips</th>
+                    <th class="px-4 py-3 text-right">Liters</th>
+                    <th class="px-4 py-3 text-right">Cost</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for entry in consumption_history %}
+                <tr class="hover:bg-slate-50">
+                    <td class="px-4 py-3 font-mono text-xs font-semibold">{{ entry.date|date:"M d, Y" }}</td>
+                    <td class="px-4 py-3"><span class="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs">{{ entry.get_destination_display|default:"Local" }}</span></td>
+                    <td class="px-4 py-3 text-center"><span class="rounded-full bg-slate-900 px-2.5 py-1 text-xs font-bold text-white">{{ entry.number_of_trips }}</span></td>
+                    <td class="px-4 py-3 text-right font-mono font-bold text-blue-700">{{ entry.total_liters|floatformat:2|intcomma }}L</td>
+                    <td class="px-4 py-3 text-right font-mono font-semibold">₱{{ entry.cost|floatformat:2|intcomma }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="px-6 py-10 text-center text-slate-500">No history yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
 {% endblock %}

@@ -1,0 +1,241 @@
+{% extends 'base.html' %}
+{% block title %}Liquidation Report — FuelTrack{% endblock %}
+{% block extra_head %}
+<style>
+    @page{size:letter;margin:0.8cm}
+    @media print{
+        .no-print{display:none!important}
+        .liq-sheet{box-shadow:none!important;border-radius:0!important;border:none!important}
+        .or-input{border:none!important;background:transparent!important;padding:0!important}
+        /* Print-friendly: no solid dark backgrounds - white header with black text/borders saves ink */
+        .liq-sheet thead th,
+        .liq-sheet thead td,
+        .liq-sheet tfoot td,
+        .liq-sheet .bg-slate-900,
+        .liq-sheet .bg-slate-50,
+        .liq-sheet .bg-amber-50\/60,
+        .liq-sheet .bg-emerald-50,
+        .liq-sheet .bg-emerald-50\/40 {
+            background:#fff !important;
+            color:#0f172a !important;
+            -webkit-print-color-adjust:exact;
+            print-color-adjust:exact;
+        }
+        .liq-sheet thead th{border:0.7pt solid #000 !important;}
+        .liq-sheet table{border-collapse:collapse !important;}
+        .liq-sheet thead{border:1pt solid #000 !important;}
+        .liq-sheet .bg-slate-900{border:1pt solid #000 !important;}
+        .liq-sheet .bg-slate-50\/30{border:1pt dashed #94a3b8 !important;}
+    }
+    .liq-sheet{ font-family: Inter, ui-sans-serif, system-ui; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-5xl">
+    <div class="no-print flex flex-wrap gap-2 mb-4">
+        <button onclick="window.print()" class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-50">Print</button>
+        {% if readonly or editing %}
+        <a href="{% url 'export_liquidation_report_saved_pdf' report.id %}" class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">Export PDF</a>
+        {% else %}
+        <a href="{% url 'export_liquidation_report_pdf' %}" class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">Export PDF</a>
+        {% endif %}
+        {% if readonly %}<a href="{% url 'liquidation_report_edit' report.id %}" class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-black">Edit Report</a>{% endif %}
+        <a href="{% url 'saved_liquidation_reports' %}" class="rounded-xl bg-white border border-slate-200 px-4 py-2 text-sm font-semibold hover:bg-slate-50">Saved Reports</a>
+        <a href="{% url 'dashboard' %}" class="ml-auto rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-50 hidden sm:inline-flex">Dashboard</a>
+    </div>
+
+    <div class="liq-sheet overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft">
+        <div class="bg-slate-900 px-6 py-5 text-center text-white">
+            <h1 class="text-xl font-black tracking-[0.14em] uppercase">Liquidation Report</h1>
+            <p class="text-xs tracking-widest text-blue-200 uppercase mt-1">MDRRMO • Dumingag, Zamboanga del Sur</p>
+        </div>
+
+        <div class="px-6 py-5">
+            <div class="flex justify-between text-xs text-slate-500">
+                <span>No: <span class="font-mono font-semibold text-slate-900">__________________</span></span>
+                <span>Date: <span class="font-mono font-semibold text-slate-900">{{ today|date:"m/d/Y" }}</span></span>
+            </div>
+            <div class="mt-2 flex justify-between text-xs">
+                <span class="text-slate-600">Dumingag, Zamboanga del Sur</span>
+                <span class="text-slate-600">Responsibility Center: <b class="text-slate-900">MDRRMO</b></span>
+            </div>
+
+            {% if readonly %}<div>{% else %}<form method="post">{% csrf_token %}{% endif %}
+            <div class="mt-6 grid grid-cols-1 sm:grid-cols-[1fr_160px] gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p class="text-sm leading-6 text-slate-700">Liquidation of Cash Advance for the Diesel expenses incurred during Patient and Emergency Transportation.</p>
+                <div class="text-right">
+                    <p class="text-[11px] font-bold tracking-widest text-slate-400 uppercase border-b border-slate-900 pb-1">Amount</p>
+                    {% if readonly %}<p class="mt-2 text-lg font-black">₱{{ principal }}</p>{% else %}<input type="text" name="principal" value="{{ principal }}" placeholder="0.00" class="or-input mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-right font-mono text-sm font-bold">{% endif %}
+                </div>
+            </div>
+
+            <h2 class="mt-6 text-center text-xs font-black tracking-[0.18em] text-slate-900 uppercase">Particulars</h2>
+            <div class="mt-3 overflow-x-auto rounded-xl border border-slate-200">
+                <table class="w-full text-sm min-w-[860px]">
+                    <thead class="bg-slate-900 text-white text-xs tracking-wide uppercase">
+                        <tr>
+                            <th rowspan="2" class="px-2 py-2.5 text-center font-semibold align-middle border-r border-slate-700">Date</th>
+                            <th rowspan="2" class="px-2 py-2.5 text-center font-semibold align-middle border-r border-slate-700">OR Receipt #</th>
+                            <th rowspan="2" class="px-2 py-2.5 text-center font-semibold align-middle border-r border-slate-700">Fuel Type</th>
+                            <th rowspan="2" class="px-2 py-2.5 text-right font-semibold align-middle border-r border-slate-700">Amount</th>
+                            <th rowspan="2" class="px-2 py-2.5 text-center font-semibold align-middle border-r border-slate-700">VAT<br><span class="text-[8px] normal-case tracking-normal text-slate-300">inclusive?</span></th>
+                            <th colspan="2" class="px-2 py-1.5 text-center font-semibold border-b border-slate-700">Withholding Tax</th>
+                            <th rowspan="2" class="px-2 py-2.5 text-right font-semibold align-middle border-l border-slate-700">Net Amount</th>
+                            <th rowspan="2" class="px-1 py-2.5 text-center font-semibold align-middle border-l border-slate-700 no-print">{% if not readonly %}Del{% endif %}</th>
+                        </tr>
+                        <tr>
+                            <th class="px-2 py-1.5 text-center font-semibold border-r border-slate-700">5%<span class="block text-[8px] normal-case tracking-normal text-slate-300">(÷1.12×5%)</span></th>
+                            <th class="px-2 py-1.5 text-center font-semibold">1%<span class="block text-[8px] normal-case tracking-normal text-slate-300">(÷1.12×1%)</span></th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 bg-white">
+                        {% for r in rows %}
+                        <tr class="hover:bg-slate-50">
+                            <td class="px-2 py-2 text-center font-mono text-xs">{{ r.date|date:"m/d/Y" }}</td>
+                            <td class="px-2 py-2 text-center">{% if readonly %}<span class="font-mono text-xs font-semibold">{{ r.or_number }}</span>{% else %}<input type="text" name="or_{{ r.id }}" value="{{ r.or_number }}" placeholder="OR NO" class="or-input w-full rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-center font-mono text-xs focus:border-blue-500 focus:bg-white outline-none">{% endif %}</td>
+                            <td class="px-2 py-2 text-center"><span class="rounded-full bg-blue-50 border border-blue-200 px-2 py-1 text-xs font-semibold text-blue-700">{{ r.fuel_type }}</span></td>
+                            <td class="px-2 py-2 text-right font-mono text-xs font-semibold">{% if readonly %}₱{{ r.amount }}{% else %}<div class="flex items-center justify-end gap-1"><span class="text-slate-400">₱</span><input type="text" name="amount_{{ r.id }}" value="{{ r.amount }}" placeholder="0.00" class="amount-input w-24 sm:w-28 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-right font-mono text-xs font-bold focus:border-blue-500 focus:bg-white outline-none"></div>{% endif %}</td>
+                            <td class="px-2 py-2 text-center">{% if readonly %}{% if r.vat_inclusive %}<span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-bold text-emerald-700">VAT</span>{% else %}<span class="inline-flex items-center gap-1 rounded-full bg-slate-100 border border-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-600">Non-VAT</span>{% endif %}{% else %}<label class="inline-flex items-center gap-1 cursor-pointer"><input type="checkbox" name="vat_{{ r.id }}" {% if r.vat_inclusive %}checked{% endif %} class="vat-input h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"><span class="text-[10px] font-bold {% if r.vat_inclusive %}text-emerald-700{% else %}text-slate-500{% endif %} vat-label">VAT</span></label>{% endif %}</td>
+                            <td class="px-2 py-2 text-right font-mono text-xs font-semibold text-amber-700 wht5-cell">₱{{ r.wht5 }}</td>
+                            <td class="px-2 py-2 text-right font-mono text-xs font-semibold text-amber-700 wht1-cell">₱{{ r.wht1 }}</td>
+                            <td class="px-2 py-2 text-right font-mono text-xs font-bold text-emerald-700 bg-emerald-50/40 net-cell">₱{{ r.net }}</td>
+                            <td class="px-1 py-2 text-center no-print">{% if not readonly %}<button type="button" class="delete-row-btn inline-flex h-7 w-7 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 hover:border-red-300" data-id="{{ r.id }}" title="Delete row"><svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>{% endif %}</td>
+                        </tr>
+                        {% empty %}<tr><td colspan="9" class="px-6 py-10 text-center text-slate-500">No fuel consumption records found.</td></tr>{% endfor %}
+                    </tbody>
+                    {% if rows %}
+                    <tfoot class="bg-slate-50 border-t-2 border-slate-900">
+                        <tr class="font-bold">
+                            <td colspan="3" class="px-3 py-2.5 text-right text-xs font-black tracking-widest uppercase text-slate-900">Total</td>
+                            <td class="px-2 py-2.5 text-right font-mono text-xs font-black text-slate-900" id="tfoot-total">₱{{ total }}</td>
+                            <td class="px-2 py-2.5 text-center text-[10px] text-slate-400"></td>
+                            <td class="px-2 py-2.5 text-right font-mono text-xs font-black text-amber-700" id="tfoot-wht5">₱{{ total_wht5 }}</td>
+                            <td class="px-2 py-2.5 text-right font-mono text-xs font-black text-amber-700" id="tfoot-wht1">₱{{ total_wht1 }}</td>
+                            <td class="px-2 py-2.5 text-right font-mono text-xs font-black text-emerald-700 bg-emerald-50" id="tfoot-net">₱{{ total_net }}</td>
+                            <td class="px-1 py-2.5 no-print"></td>
+                        </tr>
+                    </tfoot>
+                    {% endif %}
+                </table>
+            </div>
+            <p class="mt-2 text-[11px] text-slate-500">Check <b>VAT</b> if amount is VAT-inclusive (WHT = Amount ÷ 1.12 × rate). Uncheck for Non-VAT / optional (no withholding). Example: VAT 1500 → WHT 66.96/13.39 → Net 1419.65; Non-VAT 1500 → WHT 0.00/0.00 → Net 1500.00 (no deduction)</p>
+
+            <div class="mt-3 overflow-hidden rounded-xl border border-slate-200">
+                <div class="flex justify-between bg-slate-900 px-4 py-2.5 text-white">
+                    <span class="text-xs font-bold tracking-widest uppercase">Total Amount Spent</span><span class="font-mono text-sm font-black" id="summary-total">₱{{ total }}</span>
+                </div>
+                <div class="divide-y divide-slate-100 bg-white text-sm">
+                    <div class="flex justify-between px-4 py-2 bg-amber-50/60">
+                        <span class="text-slate-700 font-semibold">Less: Withholding Tax — 5% <span class="text-xs font-normal text-slate-500">(VAT: ÷1.12×5% / Non-VAT: —)</span></span><span class="font-mono font-bold text-amber-700" id="summary-wht5">₱{{ total_wht5 }}</span>
+                    </div>
+                    <div class="flex justify-between px-4 py-2 bg-amber-50/60">
+                        <span class="text-slate-700 font-semibold">Less: Withholding Tax — 1% <span class="text-xs font-normal text-slate-500">(VAT: ÷1.12×1% / Non-VAT: —)</span></span><span class="font-mono font-bold text-amber-700" id="summary-wht1">₱{{ total_wht1 }}</span>
+                    </div>
+                    <div class="flex justify-between px-4 py-2 bg-emerald-50 border-t border-emerald-100">
+                        <span class="text-emerald-900 font-black">Net Amount <span class="text-xs font-normal text-slate-600">(Amount − WHT 5% − WHT 1%)</span></span><span class="font-mono font-black text-emerald-700" id="summary-net">₱{{ total_net }}</span>
+                    </div>
+                    <div class="flex justify-between px-4 py-2 bg-slate-50/50">
+                        <span class="text-slate-700">Amount of Cash Advance per DV Check # {% if readonly %}<b class="text-slate-900">{{ check_number|default:"—" }}</b>{% else %}<input type="text" name="check_number" value="{{ check_number }}" placeholder="CHECK NO" class="ml-2 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 font-mono text-xs focus:border-blue-500 focus:bg-white outline-none">{% endif %}</span><span class="font-mono font-bold text-slate-900">{% if principal %}₱{{ principal }}{% else %}—{% endif %}</span>
+                    </div>
+                    <div class="flex justify-between px-4 py-2 text-[11px] text-slate-500 bg-slate-50/30 border-t border-dashed border-slate-200">
+                        <span>Reconciliation — Principal (Cash Advance) covers Total Spent + WHT</span><span class="font-mono text-slate-700">{% if principal %}₱{{ principal }} | Total ₱{{ total }} | WHT ₱{{ total_wht5 }} + ₱{{ total_wht1 }} | Net ₱{{ total_net }}{% endif %}</span>
+                    </div>
+                    <div class="flex justify-between px-4 py-2 text-slate-600"><span>Amount Refund per OR #</span><span></span></div>
+                    <div class="flex justify-between px-4 py-2 text-slate-600"><span>Amount Reimbursed</span><span></span></div>
+                </div>
+            </div>
+
+            {% if readonly %}</div>{% else %}
+            <div class="no-print mt-4 flex justify-end">
+                <button type="submit" class="rounded-xl bg-slate-900 px-6 py-2.5 text-sm font-semibold text-white shadow hover:bg-black">{% if editing %}Update Report{% else %}Save Report{% endif %}</button>
+            </div>
+            </form>{% endif %}
+
+            <div class="mt-8 grid grid-cols-2 gap-6 text-center">
+                <div>
+                    <p class="text-[11px] font-bold tracking-widest text-slate-400 uppercase">Submitted by</p>
+                    <div class="mx-auto mt-8 h-px w-40 bg-slate-900"></div>
+                    <p class="mt-2 text-sm font-black">JHUNAX L. CARDOZA</p><p class="text-xs tracking-widest text-slate-500 uppercase">LDRRMO-III</p><p class="mt-2 text-xs text-slate-400">Date: ______________</p>
+                </div>
+                <div>
+                    <p class="text-[11px] font-bold tracking-widest text-slate-400 uppercase">Received by</p>
+                    <div class="mx-auto mt-8 h-px w-40 bg-slate-900"></div>
+                    <p class="mt-2 text-sm font-black">REINA B. VASQUEZ</p><p class="text-xs tracking-widest text-slate-500 uppercase">Municipal Accountant</p><p class="mt-2 text-xs text-slate-400">Date: ______________</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% if not readonly %}
+<script>
+(function(){
+  function fmt(n){ return '₱' + n.toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+  function parseAmt(s){ if(!s) return 0; var v=parseFloat(String(s).replace(/,/g,'').trim()); return isNaN(v)?0:v; }
+  function recalc(){
+    var rows=document.querySelectorAll('tbody tr');
+    var tAmt=0,tW5=0,tW1=0,tNet=0;
+    rows.forEach(function(tr){
+      if(tr.style.display === 'none') return;
+      var inp=tr.querySelector('.amount-input');
+      if(!inp) return;
+      var vatChk=tr.querySelector('.vat-input');
+      var isVat = vatChk ? vatChk.checked : true;
+      var amt=parseAmt(inp.value);
+      var w5, w1;
+      if(isVat){ w5 = Math.round((amt/1.12*0.05)*100)/100; w1 = Math.round((amt/1.12*0.01)*100)/100; }
+      else { w5 = 0; w1 = 0; }
+      var net = Math.round((amt - w5 - w1)*100)/100;
+      var c5=tr.querySelector('.wht5-cell');
+      var c1=tr.querySelector('.wht1-cell');
+      var cn=tr.querySelector('.net-cell');
+      var lab=tr.querySelector('.vat-label');
+      if(c5) c5.textContent=fmt(w5);
+      if(c1) c1.textContent=fmt(w1);
+      if(cn) cn.textContent=fmt(net);
+      if(lab) { lab.textContent = isVat ? 'VAT' : 'Non-VAT'; lab.className = 'text-[10px] font-bold ' + (isVat ? 'text-emerald-700' : 'text-slate-500') + ' vat-label'; }
+      tAmt+=amt; tW5+=w5; tW1+=w1; tNet+=net;
+    });
+    var fTot=document.getElementById('tfoot-total');
+    var fW5=document.getElementById('tfoot-wht5');
+    var fW1=document.getElementById('tfoot-wht1');
+    var fNet=document.getElementById('tfoot-net');
+    if(fTot) fTot.textContent=fmt(Math.round(tAmt*100)/100);
+    if(fW5) fW5.textContent=fmt(Math.round(tW5*100)/100);
+    if(fW1) fW1.textContent=fmt(Math.round(tW1*100)/100);
+    if(fNet) fNet.textContent=fmt(Math.round(tNet*100)/100);
+    var sTot=document.getElementById('summary-total');
+    var sW5=document.getElementById('summary-wht5');
+    var sW1=document.getElementById('summary-wht1');
+    var sNet=document.getElementById('summary-net');
+    if(sTot) sTot.textContent=fmt(Math.round(tAmt*100)/100);
+    if(sW5) sW5.textContent=fmt(Math.round(tW5*100)/100);
+    if(sW1) sW1.textContent=fmt(Math.round(tW1*100)/100);
+    if(sNet) sNet.textContent=fmt(Math.round(tNet*100)/100);
+  }
+  document.addEventListener('input', function(e){ if(e.target.classList.contains('amount-input')) recalc(); });
+  document.addEventListener('change', function(e){ if(e.target.classList.contains('vat-input')) recalc(); });
+  document.addEventListener('click', function(e){
+    var btn = e.target.closest('.delete-row-btn');
+    if(!btn) return;
+    var tr = btn.closest('tr');
+    if(!tr) return;
+    var id = btn.getAttribute('data-id');
+    if(id){
+      var form = tr.closest('form');
+      if(form){
+        var hid = document.createElement('input');
+        hid.type='hidden';
+        hid.name='delete_'+id;
+        hid.value='on';
+        form.appendChild(hid);
+      }
+      tr.style.display='none';
+      // clear inputs to avoid validation issues but keep hidden delete flag
+      recalc();
+    }
+  });
+  recalc();
+})();
+</script>
+{% endif %}
+{% endblock %}

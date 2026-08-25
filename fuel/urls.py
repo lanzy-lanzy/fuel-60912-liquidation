@@ -1,37 +1,50 @@
 from django.urls import path
-from .views import (
-    DashboardView,
-    DriverListView,
-    DriverDetailView,
-    FuelConsumptionCreateView,
-    FuelConsumptionUpdateView,
-    FuelConsumptionDeleteView,
-    DriverCreateView,
-    GasSlipView,
-    fuel_report,
-    gas_slip_print_view,
-
-)
-
-
+from . import views
 
 urlpatterns = [
-    # Dashboard
-    path('', DashboardView.as_view(), name='dashboard'),
-    
-    # Drivers
-    path('drivers/', DriverListView.as_view(), name='driver_list'),
-    path('drivers/<int:pk>/', DriverDetailView.as_view(), name='driver_detail'),
-    
-    # Fuel Consumption CRUD
-    path('entries/new/', FuelConsumptionCreateView.as_view(), name='fuelconsumption_create'),
-    path('entries/<int:pk>/edit/', FuelConsumptionUpdateView.as_view(), name='fuelconsumption_update'),
-    path('entries/<int:pk>/delete/', FuelConsumptionDeleteView.as_view(), name='fuelconsumption_delete'),
-    
-    # Reports
-    path('report/', fuel_report, name='fuel_report'),
-    path('drivers/new/', DriverCreateView.as_view(), name='driver_create'),
-     path('gas-slip/<int:pk>/', GasSlipView.as_view(), name='gas_slip'),
-
-      path('print-gas-slips/', gas_slip_print_view, name='print_gas_slips'),
-  ]
+    path('', views.DashboardView.as_view(), name='dashboard'),
+    path('drivers/', views.DriverListView.as_view(), name='driver_list'),
+    path('drivers/<int:pk>/', views.DriverDetailView.as_view(), name='driver_detail'),
+    path('fuel/new/', views.FuelConsumptionCreateView.as_view(), name='fuel_new'),
+    path('fuel/<int:pk>/edit/', views.FuelConsumptionUpdateView.as_view(), name='fuel_edit'),
+    path('fuel/<int:pk>/delete/', views.FuelConsumptionDeleteView.as_view(), name='fuel_delete'),
+    path('fuel/<int:pk>/gas-slip/', views.GasSlipView.as_view(), name='gas_slip'),
+    path('fuel/gas-slip-print/', views.gas_slip_print_view, name='gas_slip_print'),
+    path('fuel/report/', views.fuel_report, name='fuel_report'),
+    path('drivers/new/', views.DriverCreateView.as_view(), name='driver_new'),
+    path('fuel-consumption-report/', views.FuelConsumptionReportView.as_view(), name='fuel_consumption_report'),
+    path('detailed-fuel-consumption-report/', views.DetailedFuelConsumptionReportView.as_view(), name='detailed_fuel_consumption_report'),
+    path('fuel-consumption-form-template/', views.fuel_consumption_form_template_view, name='fuel_consumption_form_template'),
+    path('fuel-consumption-simple-form/', views.fuel_consumption_simple_form_view, name='fuel_consumption_simple_form'),
+    path('exact-fuel-consumption-report/', views.ExactFuelConsumptionReportView.as_view(), name='exact_fuel_consumption_report'),
+    path('exact-blank-fuel-form/', views.exact_blank_fuel_form_view, name='exact_blank_fuel_form'),
+    path('export/csv/', views.export_fuel_consumption_csv, name='export_fuel_consumption_csv'),
+    path('export/excel/', views.export_fuel_consumption_excel, name='export_fuel_consumption_excel'),
+    path('export/pdf/', views.export_trip_schedule_pdf, name='export_trip_schedule_pdf'),
+    path('export/local-passenger-pdf/', views.export_local_passenger_pdf, name='export_local_passenger_pdf'),
+    path('fuel-consumption-detailed-report/', views.fuel_consumption_detailed_report_view, name='fuel_consumption_detailed_report'),
+    path('export/fuel-consumption-report-pdf/', views.export_fuel_consumption_report_pdf, name='export_fuel_consumption_report_pdf'),
+    path('get-destination-choices/', views.get_destination_choices, name='get_destination_choices'),
+    path('trip-schedule/', views.trip_schedule_view, name='trip_schedule'),
+    path('export/simple-fuel-consumption-pdf/', views.export_simple_fuel_consumption_pdf, name='export_simple_fuel_consumption_pdf'),
+    path('liquidation-report/', views.liquidation_report_view, name='liquidation_report'),
+    path('liquidation-saved-reports/', views.saved_liquidation_reports, name='saved_liquidation_reports'),
+    path('liquidation-report/<int:report_id>/', views.liquidation_report_reprint, name='liquidation_report_reprint'),
+    path('liquidation-report/<int:report_id>/edit/', views.liquidation_report_edit, name='liquidation_report_edit'),
+    path('export/liquidation-report-pdf/', views.export_liquidation_report_pdf, name='export_liquidation_report_pdf'),
+    path('export/liquidation-report-pdf/<int:report_id>/', views.export_liquidation_report_pdf, name='export_liquidation_report_saved_pdf'),
+    # ── Petty Cash Voucher (separate transaction, not fuel) ──
+    path('pcv/', views.PettyCashVoucherListView.as_view(), name='pcv_list'),
+    path('pcv/new/', views.PettyCashVoucherCreateView.as_view(), name='pcv_new'),
+    path('pcv/<int:pk>/', views.PettyCashVoucherDetailView.as_view(), name='pcv_detail'),
+    path('pcv/<int:pk>/edit/', views.PettyCashVoucherUpdateView.as_view(), name='pcv_edit'),
+    path('pcv/<int:pk>/delete/', views.PettyCashVoucherDeleteView.as_view(), name='pcv_delete'),
+    path('pcv/<int:pk>/print/', views.pcv_print_view, name='pcv_print'),
+    # ── Reimbursement Expense Receipt (image on top + RER at bottom, one A4) ──
+    path('rer/', views.RERListView.as_view(), name='rer_list'),
+    path('rer/new/', views.RERCreateView.as_view(), name='rer_new'),
+    path('rer/<int:pk>/', views.RERDetailView.as_view(), name='rer_detail'),
+    path('rer/<int:pk>/edit/', views.RERUpdateView.as_view(), name='rer_edit'),
+    path('rer/<int:pk>/delete/', views.RERDeleteView.as_view(), name='rer_delete'),
+    path('rer/<int:pk>/print/', views.rer_print_view, name='rer_print'),
+]

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}RER {{ receipt.rer_no|default:receipt.pk }} — FuelTrack{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-3xl">
+    <a href="{% url 'rer_list' %}" class="text-sm font-medium text-slate-600 hover:text-slate-900">← Back to RER list</a>
+    <div class="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft">
+        <div class="bg-slate-900 px-6 py-5 text-white">
+            <p class="text-[11px] font-bold tracking-widest text-blue-200 uppercase">Reimbursement Expense Receipt</p>
+            <h1 class="text-xl font-black">RER {{ receipt.rer_no|default:"—" }} • {{ receipt.receipt_date|date:"M d, Y" }}</h1>
+            <p class="text-sm text-blue-100/70">{{ receipt.received_from_name|default:"—" }} — ₱{{ receipt.amount_in_figures|floatformat:2|intcomma }}</p>
+        </div>
+        <div class="p-6">
+            {% if receipt.attached_image %}
+            <div class="rounded-xl border border-slate-200 overflow-hidden mb-6">
+                <p class="bg-slate-50 px-3 py-2 text-xs font-bold tracking-widest text-slate-500 uppercase">Attached Image (printed on top)</p>
+                <img src="{{ receipt.attached_image.url }}" alt="RER attachment" class="w-full max-h-[320px] object-contain bg-white">
+            </div>
+            {% else %}
+            <div class="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-500 mb-6">No image attached — upload one to print on top of RER.</div>
+            {% endif %}
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                <div><b>Payee:</b> {{ receipt.payee_signature_name|default:"—" }}</div>
+                <div><b>Witness:</b> {{ receipt.witness_signature_name|default:"—" }}</div>
+                <div class="sm:col-span-2"><b>In payment for:</b> {{ receipt.in_payment_for|default:"—"|linebreaksbr }}</div>
+            </div>
+        </div>
+        <div class="border-t border-slate-100 bg-slate-50/50 px-6 py-3 flex flex-wrap justify-end gap-2">
+            <a href="{% url 'rer_edit' receipt.pk %}" class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Edit</a>
+            <a href="{% url 'rer_print' receipt.pk %}" target="_blank" class="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white">Print (Image+RER)</a>
+            {% if receipt.petty_cash_voucher %}<a href="{% url 'pcv_print' receipt.petty_cash_voucher.pk %}" target="_blank" class="rounded-xl bg-white border border-slate-200 px-4 py-2 text-sm font-semibold">Print PCV</a>{% endif %}
+            <a href="{% url 'rer_delete' receipt.pk %}" class="rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-700">Delete</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

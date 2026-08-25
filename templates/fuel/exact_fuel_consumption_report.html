@@ -1,0 +1,63 @@
+
+{% extends 'base.html' %}
+{% load humanize %}
+{% block title %}Exact Fuel Report — FuelTrack{% endblock %}
+{% block extra_head %}
+<style>
+    @page{size:landscape;margin:0.5cm}
+    @media print{.no-print{display:none!important}.modern-card{box-shadow:none!important;border:2px solid #000!important}}
+    .fuel-table{width:100%;border-collapse:collapse;border:2px solid #0f172a;font-size:11px}
+    .fuel-table th{background:#0f172a;color:#fff;border:1px solid #0f172a;padding:6px 4px;text-align:center;text-transform:uppercase;font-size:10px;letter-spacing:0.04em}
+    .fuel-table td{border:1px solid #e2e8f0;padding:6px 4px;text-align:center;font-size:11px}
+    .fuel-table tr:nth-child(even){background:#f8fafc}
+</style>
+{% endblock %}
+{% block content %}
+<div class="rounded-[20px] bg-slate-900 p-6 text-white relative overflow-hidden">
+    <div class="absolute -top-8 -right-8 h-32 w-32 rounded-full bg-blue-500/20 blur-2xl"></div>
+    <h1 class="text-xl font-black tracking-tight">FUEL CONSUMPTION REPORT</h1>
+    <p class="text-sm text-blue-100/70">Exact official format • landscape • print-ready • Office: <span class="font-semibold text-white">{{ office|default:"MAYOR" }}</span></p>
+</div>
+
+<div class="no-print mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-soft">
+    <form method="get" class="flex flex-wrap gap-3 items-end">
+        <div class="space-y-1"><label class="text-[11px] font-bold tracking-widest text-slate-500 uppercase">Start Date</label><input type="date" name="start_date" value="{{ request.GET.start_date }}" class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:border-blue-500 focus:bg-white outline-none"></div>
+        <div class="space-y-1"><label class="text-[11px] font-bold tracking-widest text-slate-500 uppercase">End Date</label><input type="date" name="end_date" value="{{ request.GET.end_date }}" class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:border-blue-500 focus:bg-white outline-none"></div>
+        <button type="submit" class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-black">Filter</button>
+        <button type="button" onclick="window.print()" class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold hover:bg-slate-50">Print</button>
+        <a href="{% url 'export_fuel_consumption_csv' %}?{{ request.GET.urlencode }}" class="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white">CSV</a>
+        <a href="{% url 'export_fuel_consumption_excel' %}?{{ request.GET.urlencode }}" class="rounded-xl bg-white border border-slate-200 px-4 py-2.5 text-sm font-semibold">Excel</a>
+    </form>
+</div>
+
+<div class="modern-card mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft">
+    <div class="overflow-x-auto">
+        <table class="fuel-table">
+            <thead>
+                <tr>
+                    <th rowspan="2">DATE</th><th rowspan="2">VEHICLE</th><th rowspan="2">PLATE #</th><th rowspan="2">ACTIVITIES</th><th rowspan="2">DESTINATION</th><th rowspan="2">DIST KM</th><th colspan="2">AM</th><th colspan="2">PM</th><th rowspan="2">TOTAL HRS</th><th rowspan="2">START BAL</th><th colspan="3">ADDITIONAL</th><th rowspan="2">CONSUME</th><th rowspan="2">FINISH BAL</th>
+                </tr>
+                <tr><th>DEPARTURE</th><th>ARRIVAL</th><th>DEPARTURE</th><th>ARRIVAL</th><th>GASOLINE</th><th>DIESEL</th><th>LUBRICANTS</th></tr>
+            </thead>
+            <tbody>
+                {% for entry in entries %}
+                <tr>
+                    <td>{{ entry.date|date:"m/d/Y" }}</td>
+                    <td class="font-medium">{{ entry.vehicle|upper }}</td>
+                    <td>{% if entry.vehicle == "Ambulance L300" %}L300{% elif entry.vehicle == "Ambulance Province" %}PROV{% elif entry.vehicle == "Ambulance DOH" %}DOH{% elif entry.vehicle == "Backhoe" %}BACKHOE{% elif entry.vehicle == "Dumptruck" %}DUMPTRUCK{% else %}—{% endif %}</td>
+                    <td>{{ entry.purpose|upper }}</td><td>{{ entry.get_destination_display|upper }}</td><td></td><td></td><td></td><td></td><td></td><td></td>
+                    <td class="text-center">{% if entry.destination == "dipolog" %}7{% elif entry.destination == "cagayan" %}3{% elif entry.destination == "margosatubig" %}7{% elif entry.destination == "pagadian_city" %}4{% elif entry.destination == "ozamiz_city" %}4{% elif entry.destination == "zamboanga_city" %}3{% elif entry.destination == "ipil" %}4{% elif entry.destination == "sindangan" %}4{% else %}5{% endif %}</td>
+                    <td>{% if entry.vehicle == "Backhoe" or entry.vehicle == "Dumptruck" %}{{ entry.total_liters|floatformat:2|intcomma }}{% else %}—{% endif %}</td>
+                    <td class="font-semibold text-blue-700 bg-blue-50">{% if "Ambulance" in entry.vehicle %}{{ entry.total_liters|floatformat:2|intcomma }}{% else %}—{% endif %}</td>
+                    <td></td><td>{{ entry.total_liters|floatformat:0|intcomma }}</td><td>{{ entry.total_liters|floatformat:2|intcomma }}</td>
+                </tr>
+                {% empty %}<tr><td colspan="17" class="py-8 text-center text-slate-500">No records found.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="grid grid-cols-2 gap-8 p-6 text-center border-t border-slate-100 bg-slate-50/50">
+        <div><p class="text-[11px] font-bold tracking-widest text-slate-400 uppercase">Prepared by</p><div class="mx-auto mt-6 h-px w-36 bg-slate-900"></div><p class="mt-2 text-sm font-black">GERLAN DORONA</p><p class="text-xs text-slate-500 uppercase tracking-widest">MDRRMO Clerk</p></div>
+        <div><p class="text-[11px] font-bold tracking-widest text-slate-400 uppercase">Noted by</p><div class="mx-auto mt-6 h-px w-36 bg-slate-900"></div><p class="mt-2 text-sm font-black">_______________</p><p class="text-xs text-slate-500 uppercase tracking-widest">Municipal Mayor</p></div>
+    </div>
+</div>
+{% endblock %}

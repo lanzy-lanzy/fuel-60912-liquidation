@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+{% block title %}Blank Fuel Form — FuelTrack{% endblock %}
+{% block extra_head %}
+<style>@page{size:landscape;margin:0.5cm}@media print{.no-print{display:none!important}.form-card{box-shadow:none!important;border:2px solid #000!important}} .form-table{width:100%;border-collapse:collapse;border:2px solid #0f172a;font-size:11px} .form-table th{background:#0f172a;color:#fff;border:1px solid #0f172a;padding:6px 4px;text-align:center;text-transform:uppercase;font-size:10px} .form-table td{border:1px solid #e2e8f0;padding:10px 4px;text-align:center;height:22px}</style>
+{% endblock %}
+{% block content %}
+<div class="no-print flex justify-center mb-4">
+    <button onclick="window.print()" class="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-6 py-2.5 text-sm font-semibold text-white hover:bg-black">Print Blank Form</button>
+</div>
+
+<div class="rounded-[20px] bg-slate-900 p-6 text-white">
+    <h1 class="text-xl font-black tracking-tight text-center">FUEL CONSUMPTION REPORT</h1>
+    <p class="text-center text-sm text-blue-100/70 mt-1">Blank form for manual completion • Office: <span class="font-semibold text-white">___________________</span></p>
+</div>
+
+<div class="form-card mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft">
+    <div class="overflow-x-auto">
+        <table class="form-table">
+            <thead>
+                <tr><th rowspan="2">DATE</th><th rowspan="2">VEHICLE</th><th rowspan="2">PLATE #</th><th rowspan="2">ACTIVITIES</th><th rowspan="2">DESTINATION</th><th rowspan="2">DIST KM</th><th colspan="2">AM</th><th colspan="2">PM</th><th rowspan="2">TOTAL HRS</th><th rowspan="2">START BAL</th><th colspan="3">ADDITIONAL</th><th rowspan="2">CONSUME</th><th rowspan="2">FINISH BAL</th></tr>
+                <tr><th>DEPARTURE</th><th>ARRIVAL</th><th>DEPARTURE</th><th>ARRIVAL</th><th>GASOLINE</th><th>DIESEL</th><th>LUBRICANTS</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>02/09/2025</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+                {% for i in "123456789012345678901234567890123456789" %}<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="grid grid-cols-2 gap-8 p-6 text-center border-t border-slate-100 bg-slate-50/50">
+        <div><p class="text-[11px] font-bold tracking-widest text-slate-400 uppercase">Prepared by</p><div class="mx-auto mt-6 h-px w-36 bg-slate-900"></div><p class="mt-2 text-sm font-black">GERLAN DORONA</p><p class="text-xs text-slate-500 uppercase tracking-widest">MDRRMO Clerk</p></div>
+        <div><p class="text-[11px] font-bold tracking-widest text-slate-400 uppercase">Noted by</p><div class="mx-auto mt-6 h-px w-36 bg-slate-900"></div><p class="mt-2 text-sm font-black">_______________</p><p class="text-xs text-slate-500 uppercase tracking-widest">Municipal Mayor</p></div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}PCV {{ voucher.voucher_no|default:voucher.pk }} — FuelTrack{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-3xl">
+    <a href="{% url 'pcv_list' %}" class="text-sm font-medium text-slate-600 hover:text-slate-900">← Back to PCV list</a>
+    <div class="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft">
+        <div class="bg-slate-900 px-6 py-5 text-white flex flex-wrap items-start justify-between gap-3">
+            <div>
+                <p class="text-[11px] font-bold tracking-widest text-blue-200 uppercase">Petty Cash Voucher</p>
+                <h1 class="text-xl font-black">No. {{ voucher.voucher_no|default:"—" }} • {{ voucher.voucher_date|date:"M d, Y" }}</h1>
+                <p class="text-sm text-blue-100/70">{{ voucher.payee_office }} — {{ voucher.address }}</p>
+            </div>
+            <span class="rounded-xl bg-white px-3 py-1.5 text-sm font-mono font-bold text-slate-900">₱{{ voucher.amount|floatformat:2|intcomma }}</span>
+        </div>
+        <div class="p-6 grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm">
+            <div class="space-y-2"><p class="text-xs font-bold tracking-widest text-slate-400 uppercase">Request</p><p><b>Particulars:</b> {{ voucher.particulars|default:"—"|linebreaksbr }}</p><p><b>Purpose:</b> {{ voucher.purpose|default:"—" }}</p><p><b>Requested by:</b> {{ voucher.requested_by_name|default:"—" }}</p><p><b>Approved by:</b> {{ voucher.approved_by_name }}</p></div>
+            <div class="space-y-2"><p class="text-xs font-bold tracking-widest text-slate-400 uppercase">Liquidation</p><p><b>Total Granted:</b> {% if voucher.total_amount_granted %}₱{{ voucher.total_amount_granted|floatformat:2|intcomma }}{% else %}—{% endif %}</p><p><b>Paid per OR {{ voucher.or_invoice_no|default:"—" }}:</b> {% if voucher.total_amount_paid_per_or %}₱{{ voucher.total_amount_paid_per_or|floatformat:2|intcomma }}{% else %}—{% endif %}</p><p><b>Refunded:</b> {% if voucher.amount_refunded %}₱{{ voucher.amount_refunded|floatformat:2|intcomma }}{% else %}—{% endif %}</p>
+            <p class="text-xs">{% if voucher.received_refund %}✓ Received Refund{% endif %} {% if voucher.reimbursement_paid %}✓ Reimbursement Paid{% endif %} {% if voucher.liquidation_submitted %}✓ Liquidation Submitted{% endif %}</p>
+            </div>
+        </div>
+        <div class="border-t border-slate-100 bg-slate-50/50 px-6 py-3 flex flex-wrap justify-end gap-2">
+            <a href="{% url 'pcv_edit' voucher.pk %}" class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Edit</a>
+            <a href="{% url 'pcv_print' voucher.pk %}" target="_blank" class="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white">Print A4</a>
+            <a href="{% url 'pcv_delete' voucher.pk %}" class="rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-700">Delete</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
